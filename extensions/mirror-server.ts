@@ -48,6 +48,7 @@ const AUTH_PASS = TAU_SETTINGS.pass;
 const AUTH_CONFIGURED = !!(AUTH_USER && AUTH_PASS);
 let authEnabled = AUTH_CONFIGURED && TAU_SETTINGS.authEnabled !== false;
 const NEW_SESSION_COMMAND_NAME = "tau-new-session";
+const SWITCH_SESSION_COMMAND_NAME = "tau-switch-session";
 // @ts-ignore — __dirname is provided by jiti at runtime
 const STATIC_DIR = process.env.TAU_STATIC_DIR || findPublicDir();
 
@@ -343,6 +344,14 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand(SWITCH_SESSION_COMMAND_NAME, {
+    description: "Internal: resume a specific session, triggered from the Tau web UI's sidebar",
+    handler: async (args, ctx) => {
+      const sessionPath = args.trim();
+      if (sessionPath) await ctx.switchSession(sessionPath);
+    },
+  });
+
   // ═══════════════════════════════════════
   // Event forwarding — subscribe to all Pi events
   // ═══════════════════════════════════════
@@ -585,6 +594,15 @@ export default function (pi: ExtensionAPI) {
         case "new_session": {
           pi.sendUserMessage(`/${NEW_SESSION_COMMAND_NAME}`, { deliverAs: "followUp", expandPromptTemplates: true });
           sendTo(ws, success("new_session"));
+          break;
+        }
+
+        case "switch_session": {
+          const sessionFile = typeof command.sessionFile === "string" ? command.sessionFile.trim() : "";
+          if (sessionFile) {
+            pi.sendUserMessage(`/${SWITCH_SESSION_COMMAND_NAME} ${sessionFile}`, { deliverAs: "followUp", expandPromptTemplates: true });
+          }
+          sendTo(ws, success("switch_session"));
           break;
         }
 
