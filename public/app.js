@@ -65,6 +65,8 @@ let mirrorActiveSessionFile = null; // The live session file path from the TUI
 let viewingActiveSession = true; // Whether we're viewing the live session or a historical one
 let isMirrorMode = false; // Set when mirror_sync received
 let liveInstances = []; // All running Tau instances [{port, sessionFile, cwd}]
+let currentDraftKey = null; // localStorage key for the active session's unsent draft
+let draftSaveTimer = null;
 
 // File browser
 const fileSidebar = document.getElementById('file-sidebar');
@@ -471,10 +473,51 @@ messageInput.addEventListener('keydown', (e) => {
   }
 });
 
-// Auto-resize textarea
+// ═══════════════════════════════════════
+// Draft persistence (unsent text per session)
+// ═══════════════════════════════════════
+
+function draftStorageKey(sessionFile) {
+  return `tau-draft-${sessionFile || '__no-session__'}`;
+}
+
+function saveDraft() {
+  if (!currentDraftKey) return;
+  const value = messageInput.value;
+  if (value) {
+    localStorage.setItem(currentDraftKey, value);
+  } else {
+    localStorage.removeItem(currentDraftKey);
+  }
+}
+
+// Only the currently writable (live) session reaches this: a historical session's textarea is
+// disabled, so it never fires 'input' and never gets a draft to restore. Once sessions can be
+// resumed from the sidebar (see the "resume a sidebar session" branch), this will start covering
+// those too, since it hooks the same switchSession() entry point.
+function switchDraftSession(sessionFile) {
+  const newKey = draftStorageKey(sessionFile);
+  if (newKey === currentDraftKey) return;
+  clearTimeout(draftSaveTimer);
+  saveDraft();
+  currentDraftKey = newKey;
+  messageInput.value = localStorage.getItem(currentDraftKey) || '';
+  messageInput.style.height = 'auto';
+  messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
+}
+
+window.addEventListener('beforeunload', () => {
+  clearTimeout(draftSaveTimer);
+  saveDraft();
+});
+
+// Auto-resize textarea + persist draft (debounced)
 messageInput.addEventListener('input', () => {
   messageInput.style.height = 'auto';
   messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
+
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraft, 300);
 });
 
 // ═══════════════════════════════════════
@@ -655,6 +698,8 @@ function sendMessage() {
 
   messageInput.value = '';
   messageInput.style.height = 'auto';
+  clearTimeout(draftSaveTimer);
+  saveDraft();
 
   const cmd = { type: 'prompt', message: message || '(see attached image)' };
 
@@ -1139,6 +1184,8 @@ async function handleSessionSelect(session, project) {
 
 async function switchSession(sessionFile, session = null, project = null) {
   try {
+    switchDraftSession(sessionFile);
+
     // Clear any streaming state from previous session to prevent bleed
     currentStreamingElement = null;
     currentStreamingThinking = '';
@@ -1229,6 +1276,7 @@ function handleMirrorSync(data) {
   // Track the active session
   mirrorActiveSessionFile = data.sessionFile || null;
   viewingActiveSession = true;
+  switchDraftSession(mirrorActiveSessionFile);
   updateMirrorInputState();
   updateMirrorLiveIndicator();
 
