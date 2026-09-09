@@ -3,10 +3,9 @@
  */
 
 export class SessionSidebar {
-  constructor(container, onSessionSelect, onResumeSession) {
+  constructor(container, onSessionSelect) {
     this.container = container;
     this.onSessionSelect = onSessionSelect;
-    this.onResumeSession = onResumeSession;
     this.activeSessionFile = null;
     this.projects = [];
     this.collapsedProjects = new Set();
@@ -228,10 +227,6 @@ export class SessionSidebar {
       { icon: '📋', label: 'Export HTML', action: () => this.exportSession(session) },
       { icon: '🗑', label: 'Delete', action: () => this.deleteSession(session, itemEl) },
     ];
-
-    if (this.onResumeSession && !itemEl.classList.contains('mirror-live')) {
-      items.push({ icon: '▶', label: 'Resume in Pi', action: () => this.onResumeSession(session, project) });
-    }
 
     for (const item of items) {
       const row = document.createElement('div');

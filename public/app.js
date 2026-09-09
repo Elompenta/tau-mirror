@@ -24,8 +24,7 @@ const dialogHandler = new DialogHandler(document.getElementById('dialog-containe
 // Session sidebar
 const sidebar = new SessionSidebar(
   document.getElementById('session-list'),
-  handleSessionSelect,
-  handleResumeSession
+  handleSessionSelect
 );
 
 // UI elements
@@ -1129,21 +1128,21 @@ sessionSearchInput.addEventListener('input', () => {
   sidebar.setSearchQuery(sessionSearchInput.value);
 });
 
-// Tell Pi to actually resume this session (not just view its history read-only). The
-// resulting session_shutdown -> session_start cycle drops and re-establishes the WS connection,
-// same as new_session - the existing 'connected'/mirrorSync handling then picks up the switch
-// and moves the live indicator here.
-function handleResumeSession(session, project) {
-  wsClient.send({ type: 'switch_session', sessionFile: session.filePath });
-  handleSessionSelect(session, project);
-}
-
 async function handleSessionSelect(session, project) {
   sidebar.setActive(session.filePath);
   sessionTotalCost = 0;
   lastInputTokens = 0;
   updateCostDisplay();
   updateTokenUsage();
+
+  // Tell Pi to actually resume this session, unless it's already the live one - avoids an
+  // unnecessary session_shutdown -> session_start restart cycle on a no-op re-select. The
+  // resulting restart drops and re-establishes the WS connection, same as new_session, and the
+  // existing 'connected'/mirrorSync handling picks up the switch and moves the live indicator.
+  if (session.filePath !== mirrorActiveSessionFile) {
+    wsClient.send({ type: 'switch_session', sessionFile: session.filePath });
+  }
+
   await switchSession(session.filePath, session, project);
 
   // Close sidebar on mobile after selecting
