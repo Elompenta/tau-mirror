@@ -371,6 +371,7 @@ export default function (pi: ExtensionAPI) {
     userMessages = [];
     // Update instance registry with new session file
     updateInstanceSession(ctx.sessionManager.getSessionFile() || "");
+    broadcast({ type: "event", event: { type: "session_started" } });
   });
 
   pi.on("turn_start", async (_event, _ctx) => {
@@ -571,6 +572,12 @@ export default function (pi: ExtensionAPI) {
         case "abort": {
           if (ctx) ctx.abort();
           sendTo(ws, success("abort"));
+          break;
+        }
+
+        case "new_session": {
+          pi.sendUserMessage("/new", { deliverAs: "followUp" });
+          sendTo(ws, success("new_session"));
           break;
         }
 

@@ -261,6 +261,10 @@ function handleRPCEvent(event) {
         if (activeItem) activeItem.textContent = event.name;
       }
       break;
+    case 'session_started':
+      // A new Pi session was created (e.g. via the new-session button) - refresh the list
+      sidebar.loadSessions();
+      break;
   }
 }
 
@@ -1039,6 +1043,7 @@ sidebarOverlay.addEventListener('click', () => {
 
 const newSessionBtn = document.getElementById('new-session-btn');
 newSessionBtn.addEventListener('click', () => {
+  wsClient.send({ type: 'new_session' });
   sessionTotalCost = 0;
   lastInputTokens = 0;
   updateCostDisplay();
