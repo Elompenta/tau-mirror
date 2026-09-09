@@ -1340,6 +1340,9 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     let sessionName: string | null = null;
     let userMessageCount = 0;
     let lineCount = 0;
+    // Only TUI/RPC sessions emit these - a non-interactive `pi -p "..."` (pipe/print mode) run
+    // doesn't, so their presence tells apart a fresh interactive session from a real one-shot.
+    let hasInteractiveMarker = false;
 
     for await (const line of rl) {
       if (!line.trim()) continue;
@@ -1349,6 +1352,9 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
         const entry = JSON.parse(line);
         if (entry.type === "session") header = entry;
         else if (entry.type === "session_info" && entry.name) sessionName = entry.name;
+        else if (entry.type === "model_change" || entry.type === "thinking_level_change" || entry.type === "custom_message") {
+          hasInteractiveMarker = true;
+        }
         else if (entry.type === "message" && entry.message?.role === "user") {
           userMessageCount++;
           if (!firstMessage) {
@@ -1369,7 +1375,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     stream.destroy();
 
     if (!header?.id) return null;
-    if (userMessageCount <= 1 && lineCount <= 8) return null; // pipe mode
+    if (!hasInteractiveMarker && userMessageCount <= 1 && lineCount <= 8) return null; // pipe mode
 
     return {
       id: header.id,
