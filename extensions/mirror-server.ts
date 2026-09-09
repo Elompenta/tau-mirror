@@ -47,6 +47,7 @@ const AUTH_USER = TAU_SETTINGS.user;
 const AUTH_PASS = TAU_SETTINGS.pass;
 const AUTH_CONFIGURED = !!(AUTH_USER && AUTH_PASS);
 let authEnabled = AUTH_CONFIGURED && TAU_SETTINGS.authEnabled !== false;
+const NEW_SESSION_COMMAND_NAME = "tau-new-session";
 // @ts-ignore — __dirname is provided by jiti at runtime
 const STATIC_DIR = process.env.TAU_STATIC_DIR || findPublicDir();
 
@@ -335,6 +336,13 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand(NEW_SESSION_COMMAND_NAME, {
+    description: "Internal: start a new session, triggered by the Tau web UI's new-session button",
+    handler: async (_args, ctx) => {
+      await ctx.newSession();
+    },
+  });
+
   // ═══════════════════════════════════════
   // Event forwarding — subscribe to all Pi events
   // ═══════════════════════════════════════
@@ -576,7 +584,7 @@ export default function (pi: ExtensionAPI) {
         }
 
         case "new_session": {
-          pi.sendUserMessage("/new", { deliverAs: "followUp" });
+          pi.sendUserMessage(`/${NEW_SESSION_COMMAND_NAME}`, { deliverAs: "followUp", expandPromptTemplates: true });
           sendTo(ws, success("new_session"));
           break;
         }
