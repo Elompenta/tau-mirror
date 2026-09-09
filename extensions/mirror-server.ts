@@ -86,6 +86,18 @@ const USER_HOME = process.env.HOME || process.env.USERPROFILE || os.homedir();
 const PI_AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(USER_HOME, ".pi", "agent");
 const SESSIONS_DIR = process.env.PI_CODING_AGENT_SESSION_DIR || path.join(PI_AGENT_DIR, "sessions");
 const INSTANCES_DIR = path.join(USER_HOME, ".pi", "tau-instances");
+const LOG_FILE = path.join(PI_AGENT_DIR, "tau-mirror.log");
+
+/**
+ * Writes a diagnostic line to a log file instead of the console.
+ * Pi's TUI owns the terminal, so console.log/error here corrupts the UI (issue #56).
+ */
+function mirrorLog(...args: unknown[]) {
+  try {
+    const parts = args.map((a) => (a instanceof Error ? a.stack || a.message : typeof a === "string" ? a : JSON.stringify(a)));
+    fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${parts.join(" ")}\n`);
+  } catch {}
+}
 
 // Instance registry — tracks all running Tau servers
 function registerInstance(port: number, sessionFile: string, cwd: string) {
@@ -153,7 +165,7 @@ function cleanupZombieInstances() {
       }
       // Use shared zombie detection
       if (isZombieProcess(info.pid)) {
-        console.log(`[Mirror] Killing zombie Tau instance (PID ${info.pid}, port ${info.port})`);
+        mirrorLog(`[Mirror] Killing zombie Tau instance (PID ${info.pid}, port ${info.port})`);
         process.kill(info.pid, "SIGTERM");
         try { fs.unlinkSync(path.join(INSTANCES_DIR, file)); } catch {}
       }
@@ -288,7 +300,7 @@ export default function (pi: ExtensionAPI) {
       stopServer();
       ctx.ui.setStatus("mirror", "");
       ctx.ui.notify("Tau mirror server stopped", "info");
-      console.log("[Mirror] Server stopped via /taustop");
+      mirrorLog("[Mirror] Server stopped via /taustop");
     },
   });
 
@@ -522,13 +534,13 @@ export default function (pi: ExtensionAPI) {
               const content: any[] = [{ type: "text", text: command.message || "(see attached image)" }];
               for (const img of command.images) {
                 if (!img.data || typeof img.data !== "string") {
-                  console.error("[mirror-server] Skipping image: missing or invalid data");
+                  mirrorLog("[mirror-server] Skipping image: missing or invalid data");
                   continue;
                 }
                 // Strip data URL prefix if accidentally included
                 const data = img.data.includes(",") ? img.data.split(",")[1] : img.data;
                 const mimeType = (validMimes.includes(img.mimeType) ? img.mimeType : "image/png") as "image/png" | "image/jpeg" | "image/gif" | "image/webp";
-                console.log(`[mirror-server] Image: mimeType=${mimeType}, dataLen=${data.length}, rawMimeType=${img.mimeType}`);
+                mirrorLog(`[mirror-server] Image: mimeType=${mimeType}, dataLen=${data.length}, rawMimeType=${img.mimeType}`);
                 const imageBlock = {
                   type: "image" as const,
                   data: data,
@@ -536,7 +548,7 @@ export default function (pi: ExtensionAPI) {
                 };
                 // Defensive: verify mimeType is actually set (debug crash where it was missing)
                 if (!imageBlock.mimeType) {
-                  console.error(`[mirror-server] BUG: mimeType is falsy after assignment! img.mimeType=${img.mimeType}, falling back to image/png`);
+                  mirrorLog(`[mirror-server] BUG: mimeType is falsy after assignment! img.mimeType=${img.mimeType}, falling back to image/png`);
                   imageBlock.mimeType = "image/png";
                 }
                 content.push(imageBlock);
@@ -1026,15 +1038,15 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
             const { exec } = await import("node:child_process");
             const safe = fp.replace(/'/g, "''").replace(/"/g, '');
             exec(`powershell -NoProfile -WindowStyle Hidden -Command "& { $wsh = New-Object -ComObject WScript.Shell; $wsh.Run('explorer \\"${safe}\\"', 1, $false) }"`, (err) => {
-              if (err) console.error("[Mirror] open failed:", err.message);
+              if (err) mirrorLog("[Mirror] open failed:", err.message);
             });
           } else if (process.platform === "darwin") {
             execFile("open", [fp], (err) => {
-              if (err) console.error("[Mirror] open failed:", err.message);
+              if (err) mirrorLog("[Mirror] open failed:", err.message);
             });
           } else {
             execFile("xdg-open", [fp], (err) => {
-              if (err) console.error("[Mirror] open failed:", err.message);
+              if (err) mirrorLog("[Mirror] open failed:", err.message);
             });
           }
           res.writeHead(200, { "Content-Type": "application/json" });
@@ -1563,7 +1575,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     });
 
     wss.on("connection", (ws) => {
-      console.log("[Mirror] Browser client connected");
+      mirrorLog("[Mirror] Browser client connected");
       clients.add(ws);
       (ws as any).isAlive = true;
 
@@ -1586,17 +1598,17 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
           const command = JSON.parse(data.toString());
           handleCommand(ws, command);
         } catch (e) {
-          console.error("[Mirror] Failed to parse client message:", e);
+          mirrorLog("[Mirror] Failed to parse client message:", e);
         }
       });
 
       ws.on("close", () => {
-        console.log("[Mirror] Browser client disconnected");
+        mirrorLog("[Mirror] Browser client disconnected");
         clients.delete(ws);
       });
 
       ws.on("error", (e) => {
-        console.error("[Mirror] Client error:", e);
+        mirrorLog("[Mirror] Client error:", e);
         clients.delete(ws);
       });
     });
@@ -1630,7 +1642,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
           const instances = getRunningInstances();
           const stale = instances.find(i => i.port === port && i.pid !== process.pid);
           if (stale && isZombieProcess(stale.pid)) {
-            console.log(`[Mirror] Port ${port} in use by stale Tau instance (PID ${stale.pid}), killing...`);
+            mirrorLog(`[Mirror] Port ${port} in use by stale Tau instance (PID ${stale.pid}), killing...`);
             try { process.kill(stale.pid, "SIGTERM"); } catch {}
             // Wait briefly then retry the same port
             setTimeout(() => {
@@ -1639,11 +1651,11 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
             }, 500);
             return;
           }
-          console.log(`[Mirror] Port ${port} in use, trying ${port + 1}...`);
+          mirrorLog(`[Mirror] Port ${port} in use, trying ${port + 1}...`);
           server!.removeAllListeners("error");
           tryListen(port + 1, maxAttempts);
         } else {
-          console.error(`[Mirror] Failed to start server:`, err.message);
+          mirrorLog(`[Mirror] Failed to start server:`, err.message);
         }
       });
     };
@@ -1696,7 +1708,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
 
       mirrorUrl = `http://${localIp}:${port}`;
       tailscaleUrl = tailscaleIp ? `http://${tailscaleIp}:${port}` : "";
-      console.log(`[Mirror] Tau mirror server running on ${mirrorUrl}${tailscaleUrl ? `  •  Tailscale: ${tailscaleUrl}` : ""}`);
+      mirrorLog(`[Mirror] Tau mirror server running on ${mirrorUrl}${tailscaleUrl ? `  •  Tailscale: ${tailscaleUrl}` : ""}`);
       ctx.ui.setStatus("mirror", `Mirror: ${localIp}:${port}${tailscaleIp ? ` • TS: ${tailscaleIp}:${port}` : ""}`);
 
       // Register this instance
@@ -1719,12 +1731,12 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     // (pi-subagents sets PI_SUBAGENT_CHILD=1; child processes loading Tau
     // should not attempt to start their own mirror server)
     if (process.env.PI_SUBAGENT_CHILD === "1") {
-      console.log("[Mirror] Subagent child process detected (PI_SUBAGENT_CHILD=1), skipping auto-start.");
+      mirrorLog("[Mirror] Subagent child process detected (PI_SUBAGENT_CHILD=1), skipping auto-start.");
       return;
     }
 
     if (!TAU_AUTO_START) {
-      console.log("[Mirror] Tau auto-start disabled (TAU_DISABLED=1). Use /tau-start to start manually.");
+      mirrorLog("[Mirror] Tau auto-start disabled (TAU_DISABLED=1). Use /tau-start to start manually.");
       return;
     }
 
@@ -1736,6 +1748,6 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
   // ═══════════════════════════════════════
   pi.on("session_shutdown", async () => {
     stopServer();
-    console.log("[Mirror] Server shut down");
+    mirrorLog("[Mirror] Server shut down");
   });
 }
