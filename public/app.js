@@ -304,6 +304,11 @@ function handleAgentEnd() {
   currentStreamingText = '';
   updateUI();
 
+  // A session file only gets written to disk once it has its first assistant reply, so a
+  // freshly created session is invisible to /api/sessions until now - refresh the sidebar so
+  // it shows up without waiting for the next reconnect.
+  sidebar.loadSessions();
+
   // Notify via tab title if unfocused
   if (!hasFocus) {
     unreadCount++;
