@@ -1938,14 +1938,14 @@ code {
 /* Streaming cursor */
 .message-content.streaming::after {
   content: '▋';
-  animation: blink 1s infinite;
+  animation: blink 1.6s ease-in-out infinite;
   margin-left: 1px;
   color: var(--accent);
 }
 
 @keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════
