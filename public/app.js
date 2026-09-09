@@ -71,6 +71,7 @@ const fileSidebar = document.getElementById('file-sidebar');
 const fileSidebarToggle = document.getElementById('file-sidebar-toggle');
 const fileSidebarClose = document.getElementById('file-sidebar-close');
 const fileSidebarUp = document.getElementById('file-sidebar-up');
+const fileSidebarSort = document.getElementById('file-sidebar-sort');
 const fileList = document.getElementById('file-list');
 const fileSidebarPath = document.getElementById('file-sidebar-path');
 const fileBrowser = new FileBrowser(fileList, fileSidebarPath, messageInput, (filePath) => {
@@ -78,6 +79,13 @@ const fileBrowser = new FileBrowser(fileList, fileSidebarPath, messageInput, (fi
   const ext = name.split('.').pop()?.toLowerCase() || '';
   pendingFilePaths.push({ path: filePath, name, ext });
   renderAttachmentPreviews();
+});
+
+const SORT_LABELS = { name: 'Name', date: 'Date', size: 'Size' };
+fileSidebarSort.title = `Sort: ${SORT_LABELS[fileBrowser.sortBy]}`;
+fileSidebarSort.addEventListener('click', () => {
+  const sortBy = fileBrowser.cycleSort();
+  fileSidebarSort.title = `Sort: ${SORT_LABELS[sortBy]}`;
 });
 
 fileSidebarToggle.addEventListener('click', () => {
