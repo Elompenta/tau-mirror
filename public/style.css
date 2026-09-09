@@ -747,7 +747,6 @@ body {
   box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
   margin-right: 6px;
   vertical-align: middle;
-  animation: pulse 2s infinite;
 }
 
 /* Mirror mode: read-only input */
