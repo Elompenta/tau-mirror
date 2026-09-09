@@ -306,8 +306,12 @@ function handleAgentEnd() {
 
   // A session file only gets written to disk once it has its first assistant reply, so a
   // freshly created session is invisible to /api/sessions until now - refresh the sidebar so
-  // it shows up without waiting for the next reconnect.
-  sidebar.loadSessions();
+  // it shows up without waiting for the next reconnect. Only do this once, the turn that first
+  // makes it appear: loadSessions() rebuilds the whole list (including the live-session dot's
+  // DOM node, restarting its CSS animation), so reloading on every turn made it flicker.
+  if (mirrorActiveSessionFile && !isSessionListed(mirrorActiveSessionFile)) {
+    sidebar.loadSessions().then(updateMirrorLiveIndicator);
+  }
 
   // Notify via tab title if unfocused
   if (!hasFocus) {
@@ -1276,6 +1280,11 @@ function handleMirrorSync(data) {
 
   updateCostDisplay();
   updateTokenUsage();
+}
+
+// Whether the sidebar's already-loaded session list includes this file path
+function isSessionListed(filePath) {
+  return sidebar.projects.some(p => p.sessions.some(s => s.filePath === filePath));
 }
 
 // Mark all live sessions in the sidebar with a green dot
