@@ -14,6 +14,9 @@ export class DialogHandler {
     this.clearCurrentDialog();
 
     const { id, title, options, timeout } = request;
+    // A binary choice (e.g. Yes/No) already has a "no" path via its own
+    // option — a separate Cancel escape hatch is redundant there.
+    const isBinaryChoice = (options || []).length === 2;
 
     const dialog = document.createElement('div');
     dialog.className = 'dialog';
@@ -21,12 +24,12 @@ export class DialogHandler {
       <div class="dialog-title">${this.escapeHtml(title || 'Select an option')}</div>
       <div class="dialog-options" id="dialog-options"></div>
       <div class="dialog-actions">
-        <button id="dialog-cancel">Cancel</button>
+        ${isBinaryChoice ? '' : '<button id="dialog-cancel">Cancel</button>'}
       </div>
     `;
 
     const optionsContainer = dialog.querySelector('#dialog-options');
-    
+
     (options || []).forEach(option => {
       const optionDiv = document.createElement('div');
       optionDiv.className = 'dialog-option';
@@ -37,9 +40,12 @@ export class DialogHandler {
       optionsContainer.appendChild(optionDiv);
     });
 
-    dialog.querySelector('#dialog-cancel').onclick = () => {
-      this.respond(id, { cancelled: true });
-    };
+    const cancelBtn = dialog.querySelector('#dialog-cancel');
+    if (cancelBtn) {
+      cancelBtn.onclick = () => {
+        this.respond(id, { cancelled: true });
+      };
+    }
 
     this.showDialog(dialog, timeout, id);
   }
@@ -168,6 +174,21 @@ export class DialogHandler {
     this.container.innerHTML = '';
     this.container.appendChild(dialogElement);
     this.container.classList.remove('hidden');
+
+    // Dock directly above the message textarea, matching its width, instead
+    // of covering the chat — the preceding conversation (e.g. a drafted
+    // message) stays readable and the dialog reads as attached to the input.
+    const inputArea = document.querySelector('.input-area');
+    const inputBubble = document.querySelector('.input-bubble');
+    const gap = 8;
+    dialogElement.style.bottom = inputArea ? `${inputArea.getBoundingClientRect().height + gap}px` : `${gap}px`;
+    if (inputBubble) {
+      const rect = inputBubble.getBoundingClientRect();
+      dialogElement.style.left = `${rect.left}px`;
+      dialogElement.style.width = `${rect.width}px`;
+      dialogElement.style.maxWidth = `${rect.width}px`;
+      dialogElement.style.transform = 'none';
+    }
 
     // Set up timeout if specified
     if (timeout) {

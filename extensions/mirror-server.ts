@@ -247,6 +247,52 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
+  // ═══════════════════════════════════════
+  // Remote UI dialogs — let a connected browser answer ctx.ui.select/
+  // confirm/input calls (e.g. a permission-gate style extension asking
+  // whether to run a command) instead of only the local TUI. Any extension
+  // using ctx.ui works unmodified; with no browser connected this falls
+  // back to the original, unwrapped behavior.
+  // ═══════════════════════════════════════
+  function askRemote(method: "select" | "confirm" | "input", payload: any): Promise<any> {
+    const id = `ui-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return new Promise((resolve) => {
+      pendingRequests.set(id, (response: any) => {
+        pendingRequests.delete(id);
+        resolve(response);
+      });
+      broadcast({ type: "event", event: { type: "extension_ui_request", method, id, ...payload } });
+    });
+  }
+
+  function wrapUIForRemote(ctx: ExtensionContext) {
+    const ui = ctx.ui as any;
+    if (!ui || ui.__tauRemoteWrapped) return;
+    ui.__tauRemoteWrapped = true;
+
+    const originalSelect = ui.select.bind(ui);
+    const originalConfirm = ui.confirm.bind(ui);
+    const originalInput = ui.input.bind(ui);
+
+    ui.select = async (title: string, options: string[], opts?: any) => {
+      if (clients.size === 0) return originalSelect(title, options, opts);
+      const response = await askRemote("select", { title, options, timeout: opts?.timeout });
+      return response?.cancelled || response?.value === undefined ? undefined : response.value;
+    };
+
+    ui.confirm = async (title: string, message: string, opts?: any) => {
+      if (clients.size === 0) return originalConfirm(title, message, opts);
+      const response = await askRemote("confirm", { title, message, timeout: opts?.timeout });
+      return !!response?.confirmed;
+    };
+
+    ui.input = async (title: string, placeholder?: string, opts?: any) => {
+      if (clients.size === 0) return originalInput(title, placeholder, opts);
+      const response = await askRemote("input", { title, placeholder, timeout: opts?.timeout });
+      return response?.cancelled || response?.value === undefined ? undefined : response.value;
+    };
+  }
+
   let mirrorUrl = "";
   let tailscaleUrl = "";
 
@@ -351,6 +397,7 @@ export default function (pi: ExtensionAPI) {
   for (const eventType of eventTypes) {
     pi.on(eventType as any, async (event: any, ctx: ExtensionContext) => {
       latestCtx = ctx;
+      wrapUIForRemote(ctx);
 
       // Forward event to all connected browser clients
       // Wrap in { type: "event", event: ... } to match the existing frontend protocol
@@ -366,6 +413,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("session_start", async (_event, ctx) => {
     latestCtx = ctx;
+    wrapUIForRemote(ctx);
     turnCount = 0;
     titleSet = false;
     userMessages = [];
@@ -506,6 +554,13 @@ export default function (pi: ExtensionAPI) {
 
     try {
       switch (command.type) {
+        // ─── Remote UI dialogs ───
+        case "extension_ui_response": {
+          const resolver = pendingRequests.get(id);
+          if (resolver) resolver(command);
+          break;
+        }
+
         // ─── Prompting ───
         case "prompt": {
           if (ctx && !ctx.isIdle()) {
@@ -1593,6 +1648,12 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
       ws.on("close", () => {
         console.log("[Mirror] Browser client disconnected");
         clients.delete(ws);
+        // No client left to answer a pending remote UI dialog — cancel it
+        // rather than leaving the extension that asked for it blocked forever.
+        if (clients.size === 0 && pendingRequests.size > 0) {
+          for (const resolver of pendingRequests.values()) resolver({ cancelled: true });
+          pendingRequests.clear();
+        }
       });
 
       ws.on("error", (e) => {
@@ -1714,6 +1775,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
   // ═══════════════════════════════════════
   pi.on("session_start", async (_event, ctx) => {
     latestCtx = ctx;
+    wrapUIForRemote(ctx);
 
     // Skip mirror startup in subagent child processes
     // (pi-subagents sets PI_SUBAGENT_CHILD=1; child processes loading Tau
