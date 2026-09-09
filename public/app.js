@@ -1128,20 +1128,6 @@ sessionSearchInput.addEventListener('input', () => {
   sidebar.setSearchQuery(sessionSearchInput.value);
 });
 
-async function newSession() {
-  sessionTotalCost = 0;
-  lastInputTokens = 0;
-  updateCostDisplay();
-  updateTokenUsage();
-  await switchSession(null);
-  sidebar.clearActive();
-  if (isMobile()) {
-    sidebarEl.classList.add('collapsed');
-    sidebarOverlay.classList.remove('visible');
-  }
-  if (!isMobile()) messageInput.focus();
-}
-
 async function handleSessionSelect(session, project) {
   sidebar.setActive(session.filePath);
   sessionTotalCost = 0;
