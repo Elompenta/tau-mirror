@@ -40,13 +40,15 @@ function formatSize(bytes) {
 const SORT_MODES = ['name', 'date', 'size'];
 
 export class FileBrowser {
-  constructor(container, pathEl, messageInput, onFileInserted = null) {
+  constructor(container, pathEl, messageInput, onFileInserted = null, searchInput = null) {
     this.container = container;
     this.pathEl = pathEl;
     this.messageInput = messageInput;
     this.onFileInserted = onFileInserted;
+    this.searchInput = searchInput;
     this.currentPath = null;
     this.items = [];
+    this.searchQuery = '';
     this.sortBy = SORT_MODES.includes(localStorage.getItem('tau-file-sort'))
       ? localStorage.getItem('tau-file-sort')
       : 'name';
@@ -56,6 +58,8 @@ export class FileBrowser {
 
   async load(dirPath) {
     this.container.innerHTML = '<div class="file-loading">Loading…</div>';
+    this.searchQuery = '';
+    if (this.searchInput) this.searchInput.value = '';
 
     try {
       const url = dirPath
@@ -73,14 +77,19 @@ export class FileBrowser {
       this.pathEl.textContent = data.path;
       this.pathEl.title = data.path;
       this.items = data.items;
-      this.render(this.getSortedItems());
+      this.render(this.getVisibleItems());
     } catch (err) {
       this.container.innerHTML = '<div class="file-loading">Failed to load</div>';
     }
   }
 
-  getSortedItems() {
-    const items = [...this.items];
+  getVisibleItems() {
+    const query = this.searchQuery.trim().toLowerCase();
+    const filtered = query
+      ? this.items.filter(item => item.name.toLowerCase().includes(query))
+      : this.items;
+
+    const items = [...filtered];
     items.sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
       if (this.sortBy === 'date') return b.mtime - a.mtime;
@@ -90,12 +99,16 @@ export class FileBrowser {
     return items;
   }
 
-  cycleSort() {
-    const next = SORT_MODES[(SORT_MODES.indexOf(this.sortBy) + 1) % SORT_MODES.length];
-    this.sortBy = next;
-    localStorage.setItem('tau-file-sort', next);
-    if (this.items.length) this.render(this.getSortedItems());
-    return next;
+  setSearchQuery(query) {
+    this.searchQuery = query;
+    this.render(this.getVisibleItems());
+  }
+
+  setSortBy(key) {
+    if (!SORT_MODES.includes(key)) return;
+    this.sortBy = key;
+    localStorage.setItem('tau-file-sort', key);
+    if (this.items.length) this.render(this.getVisibleItems());
   }
 
   getParentPath() {
@@ -112,7 +125,8 @@ export class FileBrowser {
     this.container.innerHTML = '';
 
     if (items.length === 0) {
-      this.container.innerHTML = '<div class="file-loading">Empty directory</div>';
+      const message = this.searchQuery ? 'No matches' : 'Empty directory';
+      this.container.innerHTML = `<div class="file-loading">${message}</div>`;
       return;
     }
 
