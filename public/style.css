@@ -498,6 +498,7 @@ body {
 }
 
 .new-session-btn { color: var(--accent-text); }
+.new-session-btn:disabled { opacity: 0.4; cursor: default; }
 
 .icon-btn.spinning { animation: spin 0.5s ease; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

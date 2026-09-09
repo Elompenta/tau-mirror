@@ -191,6 +191,7 @@ wsClient.addEventListener('connected', () => {
   // which drops and re-establishes this connection - refresh the sidebar so a new/switched
   // session shows up without a manual refresh click.
   sidebar.loadSessions();
+  newSessionBtn.disabled = false;
 });
 
 wsClient.addEventListener('disconnected', () => {
@@ -200,6 +201,7 @@ wsClient.addEventListener('disconnected', () => {
 wsClient.addEventListener('reconnectFailed', () => {
   updateConnectionStatus('disconnected');
   messageRenderer.renderError('Connection lost. Please refresh the page.');
+  newSessionBtn.disabled = false;
 });
 
 wsClient.addEventListener('rpcEvent', (e) => {
@@ -1042,6 +1044,11 @@ sidebarOverlay.addEventListener('click', () => {
 
 const newSessionBtn = document.getElementById('new-session-btn');
 newSessionBtn.addEventListener('click', () => {
+  // A new session tears down and restarts the whole mirror server (session_shutdown ->
+  // session_start), which drops and re-establishes this WS connection. A second click before
+  // that cycle finishes races the restart, so block repeat clicks until we're back online.
+  if (newSessionBtn.disabled) return;
+  newSessionBtn.disabled = true;
   wsClient.send({ type: 'new_session' });
   sessionTotalCost = 0;
   lastInputTokens = 0;
