@@ -379,7 +379,6 @@ export default function (pi: ExtensionAPI) {
     userMessages = [];
     // Update instance registry with new session file
     updateInstanceSession(ctx.sessionManager.getSessionFile() || "");
-    broadcast({ type: "event", event: { type: "session_started" } });
   });
 
   pi.on("turn_start", async (_event, _ctx) => {

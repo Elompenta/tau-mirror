@@ -187,7 +187,10 @@ wsClient.addEventListener('connected', () => {
   updateConnectionStatus('connected');
   // Fetch model context window size for token % display
   setTimeout(fetchContextWindow, 1000);
-
+  // The mirror server restarts on every session change (session_shutdown -> session_start),
+  // which drops and re-establishes this connection - refresh the sidebar so a new/switched
+  // session shows up without a manual refresh click.
+  sidebar.loadSessions();
 });
 
 wsClient.addEventListener('disconnected', () => {
@@ -260,10 +263,6 @@ function handleRPCEvent(event) {
         const activeItem = document.querySelector('.session-item.active .session-title');
         if (activeItem) activeItem.textContent = event.name;
       }
-      break;
-    case 'session_started':
-      // A new Pi session was created (e.g. via the new-session button) - refresh the list
-      sidebar.loadSessions();
       break;
   }
 }
