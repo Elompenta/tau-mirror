@@ -3019,7 +3019,11 @@ body.hide-thinking .thinking-block { display: none !important; }
 }
 
 .file-sidebar-path {
-  padding: 6px 12px;
+  display: block;
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  box-sizing: border-box;
+  padding: 6px 4px;
   font-size: 10px;
   font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
   color: var(--text-dim);
@@ -3028,6 +3032,16 @@ body.hide-thinking .thinking-block { display: none !important; }
   text-overflow: ellipsis;
   direction: rtl;
   text-align: left;
+  border: none;
+  background: transparent;
+  outline: none;
+  cursor: text;
+}
+
+.file-sidebar-path:focus {
+  color: var(--text-primary);
+  background: var(--bg-glass-hover);
+  border-radius: var(--radius-sm);
 }
 
 .file-list {
