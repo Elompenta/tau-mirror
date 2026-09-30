@@ -19,6 +19,12 @@ Tau connects to your running Pi TUI and gives you a second view in the browser. 
 - **Session browser** — view history from any past session
 - **No extra process** — the Pi extension *is* the server
 
+## Project status: retired
+
+Tau is no longer maintained. No further features, bug fixes, or releases are planned, and new contributions will not be reviewed or merged. The code remains available under the [MIT license](LICENSE) for anyone who wants to fork it.
+
+The installation and usage instructions below are retained for reference. Tau can access and control your Pi session; do not expose it to the public internet. Authentication is optional and the default bind address is `0.0.0.0`. See [#65](https://github.com/deflating/tau/issues/65) for the outstanding security cleanup.
+
 ## Install
 
 ```bash
