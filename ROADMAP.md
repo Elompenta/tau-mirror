@@ -1,4 +1,6 @@
-# Tau Roadmap
+# Tau Roadmap (historical)
+
+Tau is retired and no longer maintained. This roadmap is preserved as a historical record; unfinished items are not planned for implementation.
 
 Ideas and planned features. Nothing here is committed — just captured so it doesn't get lost.
 
