@@ -1243,9 +1243,9 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
       req.on("end", () => {
         try {
           const { filePath } = JSON.parse(body);
-          if (!filePath || typeof filePath !== "string") {
+          if (typeof filePath !== "string" || !isSessionFilePath(filePath, SESSIONS_DIR)) {
             res.writeHead(400, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "filePath required" }));
+            res.end(JSON.stringify({ error: "Not a session file" }));
             return;
           }
           if (!fs.existsSync(filePath)) {
@@ -1427,6 +1427,12 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
   // ═══════════════════════════════════════
   function serveSessionFile(res: http.ServerResponse, dirName: string, file: string) {
     const filePath = path.join(SESSIONS_DIR, dirName, file);
+
+    if (!isSessionFilePath(filePath, SESSIONS_DIR)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not a session file" }));
+      return;
+    }
 
     if (!fs.existsSync(filePath)) {
       res.writeHead(404, { "Content-Type": "application/json" });
