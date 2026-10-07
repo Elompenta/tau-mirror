@@ -67,6 +67,8 @@ let mirrorActiveSessionFile = null; // The live session file path from the TUI
 let viewingActiveSession = true; // Whether we're viewing the live session or a historical one
 let isMirrorMode = false; // Set when mirror_sync received
 let liveInstances = []; // All running Tau instances [{port, sessionFile, cwd}]
+let liveSessionName = null; // Name of the live session as reported by Pi, null while unnamed
+let pendingSwitchFile = null; // Session file a sidebar click asked Pi to switch to, until the next mirror sync
 let currentDraftKey = null; // localStorage key for the active session's unsent draft
 let draftSaveTimer = null;
 
@@ -240,7 +242,9 @@ wsClient.addEventListener('connected', () => {
   // The mirror server restarts on every session change (session_shutdown -> session_start),
   // which drops and re-establishes this connection - refresh the sidebar so a new/switched
   // session shows up without a manual refresh click.
-  sidebar.loadSessions();
+  sidebar.loadSessions().then(() => {
+    if (isMirrorMode && viewingActiveSession) showLiveSessionTitle();
+  });
   newSessionBtn.disabled = false;
 });
 
@@ -315,8 +319,9 @@ function handleRPCEvent(event) {
     case 'session_name':
       // Auto-title: update sidebar and header with new session name
       if (event.name) {
-        const activeItem = document.querySelector('.session-item.active .session-title');
-        if (activeItem) activeItem.textContent = event.name;
+        const liveTitle = liveSessionTitleEl();
+        if (liveTitle) liveTitle.textContent = event.name;
+        liveSessionName = event.name;
         updateHeaderSessionTitle(event.name);
       }
       break;
@@ -997,6 +1002,27 @@ function updateHeaderSessionTitle(name) {
   sessionTitleHeaderTextEl.textContent = name || 'New Session';
 }
 
+/** Shows the live session's name in the header, falling back to its first message like the sidebar does. */
+function showLiveSessionTitle() {
+  updateHeaderSessionTitle(liveSessionName || listedSessionPreview(mirrorActiveSessionFile));
+}
+
+/** The sidebar's name or first message for a session file, or null if it is not listed. */
+function listedSessionPreview(filePath) {
+  for (const project of sidebar.projects) {
+    const session = project.sessions.find(s => s.filePath === filePath);
+    if (session) return session.name || session.firstMessage || null;
+  }
+  return null;
+}
+
+/** The sidebar title element of the live session; right after a page load no item is .active yet. */
+function liveSessionTitleEl() {
+  const item = (mirrorActiveSessionFile && [...document.querySelectorAll('.session-item')].find(el => el.dataset.filePath === mirrorActiveSessionFile))
+    || document.querySelector('.session-item.active');
+  return item?.querySelector('.session-title') || null;
+}
+
 function startHeaderRename() {
   if (isMirrorMode && !viewingActiveSession) return;
   if (sessionTitleHeaderEl.querySelector('.session-title-header-input')) return;
@@ -1022,8 +1048,9 @@ function startHeaderRename() {
     }
     sessionTitleHeaderTextEl.textContent = newName || currentName;
     input.replaceWith(sessionTitleHeaderTextEl);
-    const activeItem = document.querySelector('.session-item.active .session-title');
-    if (activeItem && newName) activeItem.textContent = newName;
+    const liveTitle = liveSessionTitleEl();
+    if (liveTitle && newName) liveTitle.textContent = newName;
+    if (newName) liveSessionName = newName;
   };
 
   input.addEventListener('blur', commit);
@@ -1292,6 +1319,7 @@ async function handleSessionSelect(session, project) {
   // resulting restart drops and re-establishes the WS connection, same as new_session, and the
   // existing 'connected'/mirrorSync handling picks up the switch and moves the live indicator.
   if (session.filePath !== mirrorActiveSessionFile) {
+    pendingSwitchFile = session.filePath;
     wsClient.send({ type: 'switch_session', sessionFile: session.filePath });
   }
 
@@ -1334,7 +1362,8 @@ async function switchSession(sessionFile, session = null, project = null) {
           messageRenderer.clear();
           renderSessionHistory(data.entries || []);
         } catch (e) {
-          console.error('[App] History fetch error:', e);
+          // The switch restarts the server mid-fetch; the following mirror sync renders the history.
+          if (sessionFile !== pendingSwitchFile) console.error('[App] History fetch error:', e);
         }
       } else {
         console.log('[App] Skipped history load: dirName or file missing');
@@ -1401,7 +1430,9 @@ function handleMirrorSync(data) {
   switchDraftSession(mirrorActiveSessionFile);
   updateMirrorInputState();
   updateMirrorLiveIndicator();
-  updateHeaderSessionTitle(data.sessionName);
+  liveSessionName = data.sessionName || null;
+  pendingSwitchFile = null;
+  showLiveSessionTitle();
 
   // Update model display
   if (data.model) {
@@ -2138,6 +2169,7 @@ wsClient.connect();
 messageRenderer.renderWelcome();
 sidebar.loadSessions().then(() => {
   if (isMirrorMode) updateMirrorLiveIndicator();
+  if (isMirrorMode && viewingActiveSession) showLiveSessionTitle();
 });
 initLauncher();
 
