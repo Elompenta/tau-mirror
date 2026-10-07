@@ -17,7 +17,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import QRCode from "qrcode";
-import { isAllowedHost, isAllowedOrigin, isLoopbackHost, isSessionFilePath } from "./security.ts";
+import { appleScriptString, isAllowedHost, isAllowedOrigin, isLoopbackHost, isSessionFilePath, shellSingleQuote } from "./security.ts";
 
 const USER_HOME = process.env.HOME || process.env.USERPROFILE || os.homedir();
 const PI_AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(USER_HOME, ".pi", "agent");
@@ -1110,9 +1110,9 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
             res.end(JSON.stringify({ error: "Directory not found" }));
             return;
           }
-          const { execSync } = require("node:child_process");
-          const escaped = resolved.replace(/'/g, "'\\''");
-          execSync(`osascript -e 'tell app "iTerm2" to create window with default profile command "cd '"'"'${escaped}'"'"' && pi"'`);
+          const { execFileSync } = require("node:child_process");
+          const command = `cd ${shellSingleQuote(resolved)} && pi`;
+          execFileSync("osascript", ["-e", `tell app "iTerm2" to create window with default profile command ${appleScriptString(command)}`]);
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ ok: true }));
         } catch (e: any) {
@@ -1172,11 +1172,8 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
           }
           const { execFile } = await import("node:child_process");
           if (process.platform === "win32") {
-            const { exec } = await import("node:child_process");
-            const safe = fp.replace(/'/g, "''").replace(/"/g, '');
-            exec(`powershell -NoProfile -WindowStyle Hidden -Command "& { $wsh = New-Object -ComObject WScript.Shell; $wsh.Run('explorer \\"${safe}\\"', 1, $false) }"`, (err) => {
-              if (err) mirrorLog("[Mirror] open failed:", err.message);
-            });
+            // explorer.exe exits with 1 even on success, so its error callback is not a failure signal.
+            execFile("explorer.exe", [path.resolve(fp)], () => {});
           } else if (process.platform === "darwin") {
             execFile("open", [fp], (err) => {
               if (err) mirrorLog("[Mirror] open failed:", err.message);

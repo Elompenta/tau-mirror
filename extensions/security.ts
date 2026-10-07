@@ -11,6 +11,16 @@ function hostnameOf(hostHeader: string): string | null {
   }
 }
 
+/** Quotes a string as one POSIX shell word. */
+export function shellSingleQuote(s: string): string {
+  return `'${s.replace(/'/g, `'\\''`)}'`;
+}
+
+/** Quotes a string as an AppleScript string literal. */
+export function appleScriptString(s: string): string {
+  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 /** Whether a bind address only accepts connections from this machine. */
 export function isLoopbackHost(host: string): boolean {
   const h = host.trim().toLowerCase().replace(/^\[|\]$/g, "");

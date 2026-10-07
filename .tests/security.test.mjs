@@ -2,7 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
-import { isAllowedHost, isAllowedOrigin, isLoopbackHost, isSessionFilePath } from "../extensions/security.ts";
+import { appleScriptString, isAllowedHost, isAllowedOrigin, isLoopbackHost, isSessionFilePath, shellSingleQuote } from "../extensions/security.ts";
+
+test("shellSingleQuote wraps a path as one shell word, including single quotes", () => {
+  assert.equal(shellSingleQuote("/Users/me/my project"), "'/Users/me/my project'");
+  assert.equal(shellSingleQuote("/Users/me/it's"), "'/Users/me/it'\\''s'");
+  assert.equal(shellSingleQuote("/tmp/$(rm -rf ~);`id`"), "'/tmp/$(rm -rf ~);`id`'");
+  assert.equal(shellSingleQuote(""), "''");
+});
+
+test("appleScriptString escapes quotes and backslashes so input cannot end the literal", () => {
+  assert.equal(appleScriptString("cd '/a b' && pi"), `"cd '/a b' && pi"`);
+  assert.equal(appleScriptString('x" & do shell script "evil'), `"x\\" & do shell script \\"evil"`);
+  assert.equal(appleScriptString("a\\b"), `"a\\\\b"`);
+  assert.equal(appleScriptString('\\"'), `"\\\\\\""`);
+});
 
 test("isLoopbackHost accepts loopback bind addresses", () => {
   for (const host of ["127.0.0.1", "127.1.2.3", "::1", "[::1]", "localhost", " LOCALHOST "]) {
