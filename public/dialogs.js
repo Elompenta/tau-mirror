@@ -7,6 +7,7 @@ export class DialogHandler {
     this.container = container;
     this.wsClient = wsClient;
     this.currentDialog = null;
+    this.currentRequestId = null;
     this.timeoutId = null;
   }
 
@@ -14,9 +15,6 @@ export class DialogHandler {
     this.clearCurrentDialog();
 
     const { id, title, options, timeout } = request;
-    // A binary choice (e.g. Yes/No) already has a "no" path via its own
-    // option — a separate Cancel escape hatch is redundant there.
-    const isBinaryChoice = (options || []).length === 2;
 
     const dialog = document.createElement('div');
     dialog.className = 'dialog';
@@ -24,7 +22,7 @@ export class DialogHandler {
       <div class="dialog-title">${this.escapeHtml(title || 'Select an option')}</div>
       <div class="dialog-options" id="dialog-options"></div>
       <div class="dialog-actions">
-        ${isBinaryChoice ? '' : '<button id="dialog-cancel">Cancel</button>'}
+        <button id="dialog-cancel">Cancel</button>
       </div>
     `;
 
@@ -40,12 +38,9 @@ export class DialogHandler {
       optionsContainer.appendChild(optionDiv);
     });
 
-    const cancelBtn = dialog.querySelector('#dialog-cancel');
-    if (cancelBtn) {
-      cancelBtn.onclick = () => {
-        this.respond(id, { cancelled: true });
-      };
-    }
+    dialog.querySelector('#dialog-cancel').onclick = () => {
+      this.respond(id, { cancelled: true });
+    };
 
     this.showDialog(dialog, timeout, id);
   }
@@ -169,8 +164,14 @@ export class DialogHandler {
     }
   }
 
+  /** Closes the dialog of the given request if it is still shown, without responding. */
+  dismiss(id) {
+    if (this.currentRequestId === id) this.clearCurrentDialog();
+  }
+
   showDialog(dialogElement, timeout, requestId) {
     this.currentDialog = dialogElement;
+    this.currentRequestId = requestId;
     this.container.innerHTML = '';
     this.container.appendChild(dialogElement);
     this.container.classList.remove('hidden');
@@ -207,6 +208,7 @@ export class DialogHandler {
     this.container.innerHTML = '';
     this.container.classList.add('hidden');
     this.currentDialog = null;
+    this.currentRequestId = null;
   }
 
   respond(id, response) {

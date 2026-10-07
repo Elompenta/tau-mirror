@@ -268,20 +268,51 @@ export default function (pi: ExtensionAPI) {
   }
 
   // ═══════════════════════════════════════
-  // Remote UI dialogs — let a connected browser answer ctx.ui.select/
-  // confirm/input calls (e.g. a permission-gate style extension asking
-  // whether to run a command) instead of only the local TUI. Any extension
-  // using ctx.ui works unmodified; with no browser connected this falls
-  // back to the original, unwrapped behavior.
+  // Remote UI dialogs — ctx.ui.select/confirm/input show in the local TUI
+  // and every connected browser at once; the first answer wins and closes
+  // the dialog everywhere else. Any extension using ctx.ui works unmodified.
   // ═══════════════════════════════════════
-  function askRemote(method: "select" | "confirm" | "input", payload: any): Promise<any> {
+
+  /**
+   * Shows a dialog locally and in all browsers, resolving with the first answer.
+   * The caller's opts.signal and opts.timeout close it on every side.
+   */
+  function raceDialog<T>(
+    ctx: ExtensionContext,
+    method: "select" | "confirm" | "input",
+    payload: Record<string, unknown>,
+    opts: any,
+    runLocal: (opts: any) => Promise<T>,
+    fromRemote: (response: any) => T,
+  ): Promise<T> {
+    if (clients.size === 0) return runLocal(opts);
+
     const id = `ui-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    return new Promise((resolve) => {
-      pendingRequests.set(id, (response: any) => {
+    const localAbort = new AbortController();
+    const signal = opts?.signal ? AbortSignal.any([opts.signal, localAbort.signal]) : localAbort.signal;
+
+    return new Promise<T>((resolve) => {
+      let settled = false;
+      const finish = (value: T) => {
+        if (settled) return;
+        settled = true;
         pendingRequests.delete(id);
-        resolve(response);
-      });
-      broadcast({ type: "event", event: { type: "extension_ui_request", method, id, ...payload } });
+        localAbort.abort();
+        broadcast({ type: "event", event: { type: "extension_ui_dismiss", id } });
+        resolve(value);
+      };
+
+      pendingRequests.set(id, (response: any) => finish(fromRemote(response)));
+      broadcast({ type: "event", event: { type: "extension_ui_request", method, id, ...payload, timeout: opts?.timeout } });
+
+      if (ctx.hasUI) {
+        // The local dialog also resolves on caller abort and timeout, which ends the race.
+        runLocal({ ...opts, signal }).then(finish, () => finish(fromRemote({ cancelled: true })));
+      }
+      else {
+        if (opts?.signal?.aborted) finish(fromRemote({ cancelled: true }));
+        opts?.signal?.addEventListener("abort", () => finish(fromRemote({ cancelled: true })), { once: true });
+      }
     });
   }
 
@@ -293,24 +324,16 @@ export default function (pi: ExtensionAPI) {
     const originalSelect = ui.select.bind(ui);
     const originalConfirm = ui.confirm.bind(ui);
     const originalInput = ui.input.bind(ui);
+    const valueOrUndefined = (response: any) => (response?.cancelled || response?.value === undefined ? undefined : response.value);
 
-    ui.select = async (title: string, options: string[], opts?: any) => {
-      if (clients.size === 0) return originalSelect(title, options, opts);
-      const response = await askRemote("select", { title, options, timeout: opts?.timeout });
-      return response?.cancelled || response?.value === undefined ? undefined : response.value;
-    };
+    ui.select = (title: string, options: string[], opts?: any) =>
+      raceDialog(ctx, "select", { title, options }, opts, (o) => originalSelect(title, options, o), valueOrUndefined);
 
-    ui.confirm = async (title: string, message: string, opts?: any) => {
-      if (clients.size === 0) return originalConfirm(title, message, opts);
-      const response = await askRemote("confirm", { title, message, timeout: opts?.timeout });
-      return !!response?.confirmed;
-    };
+    ui.confirm = (title: string, message: string, opts?: any) =>
+      raceDialog(ctx, "confirm", { title, message }, opts, (o) => originalConfirm(title, message, o), (response) => !!response?.confirmed);
 
-    ui.input = async (title: string, placeholder?: string, opts?: any) => {
-      if (clients.size === 0) return originalInput(title, placeholder, opts);
-      const response = await askRemote("input", { title, placeholder, timeout: opts?.timeout });
-      return response?.cancelled || response?.value === undefined ? undefined : response.value;
-    };
+    ui.input = (title: string, placeholder?: string, opts?: any) =>
+      raceDialog(ctx, "input", { title, placeholder }, opts, (o) => originalInput(title, placeholder, o), valueOrUndefined);
   }
 
   let mirrorUrl = "";
@@ -1670,11 +1693,9 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
       ws.on("close", () => {
         mirrorLog("[Mirror] Browser client disconnected");
         clients.delete(ws);
-        // No client left to answer a pending remote UI dialog — cancel it
-        // rather than leaving the extension that asked for it blocked forever.
-        if (clients.size === 0 && pendingRequests.size > 0) {
-          for (const resolver of pendingRequests.values()) resolver({ cancelled: true });
-          pendingRequests.clear();
+        // Without a local UI, a dialog nobody can answer anymore would block forever.
+        if (clients.size === 0 && !latestCtx?.hasUI) {
+          for (const resolver of [...pendingRequests.values()]) resolver({ cancelled: true });
         }
       });
 

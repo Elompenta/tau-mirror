@@ -253,6 +253,9 @@ function handleRPCEvent(event) {
     case 'extension_ui_request':
       handleExtensionUIRequest(event);
       break;
+    case 'extension_ui_dismiss':
+      dialogHandler.dismiss(event.id);
+      break;
     case 'extension_error':
       messageRenderer.renderError(`Extension error: ${event.error}`);
       break;
