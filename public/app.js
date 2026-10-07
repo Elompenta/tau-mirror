@@ -1798,6 +1798,14 @@ async function openSettings() {
   settingsPanel.classList.remove('hidden');
   settingsOverlay.classList.remove('hidden');
 
+  const versionEl = document.getElementById('tau-version');
+  if (!versionEl.textContent) {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(health => { if (health.version) versionEl.textContent = `v${health.version}`; })
+      .catch(() => {});
+  }
+
   // Fetch current state for toggles
   try {
     const resp = await fetch('/api/rpc', {

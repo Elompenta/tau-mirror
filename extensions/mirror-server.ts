@@ -54,6 +54,17 @@ const NEW_SESSION_COMMAND_NAME = "tau-new-session";
 const SWITCH_SESSION_COMMAND_NAME = "tau-switch-session";
 // @ts-ignore — __dirname is provided by jiti at runtime
 const STATIC_DIR = process.env.TAU_STATIC_DIR || findPublicDir();
+const TAU_VERSION = readTauVersion();
+
+/** The version from Tau's own package.json, or an empty string if it cannot be read. */
+function readTauVersion(): string {
+  try {
+    // @ts-ignore — __dirname is provided by jiti at runtime
+    return JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8")).version || "";
+  } catch {
+    return "";
+  }
+}
 
 function findPublicDir(): string {
     const candidates: string[] = [];
@@ -1035,7 +1046,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
 
     if (urlPath === "/api/health") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "ok", mode: "mirror", mirrorUrl, tailscaleUrl: tailscaleUrl || undefined, platform: process.platform }));
+      res.end(JSON.stringify({ status: "ok", mode: "mirror", version: TAU_VERSION, mirrorUrl, tailscaleUrl: tailscaleUrl || undefined, platform: process.platform }));
       return;
     }
 

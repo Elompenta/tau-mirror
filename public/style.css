@@ -1416,6 +1416,23 @@ body {
   color: var(--text-secondary);
 }
 
+.settings-about {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.settings-about a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.settings-about a:hover {
+  text-decoration: underline;
+}
+
 .settings-toggle {
   width: 40px;
   height: 22px;
