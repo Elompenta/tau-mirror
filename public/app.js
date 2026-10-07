@@ -235,7 +235,11 @@ wsClient.addEventListener('connected', () => {
   updateConnectionStatus('connected');
   // Fetch model context window size for token % display
   setTimeout(fetchContextWindow, 1000);
-
+  // The mirror server restarts on every session change (session_shutdown -> session_start),
+  // which drops and re-establishes this connection - refresh the sidebar so a new/switched
+  // session shows up without a manual refresh click.
+  sidebar.loadSessions();
+  newSessionBtn.disabled = false;
 });
 
 wsClient.addEventListener('disconnected', () => {
@@ -245,6 +249,7 @@ wsClient.addEventListener('disconnected', () => {
 wsClient.addEventListener('reconnectFailed', () => {
   updateConnectionStatus('disconnected');
   messageRenderer.renderError('Connection lost. Please refresh the page.');
+  newSessionBtn.disabled = false;
 });
 
 wsClient.addEventListener('rpcEvent', (e) => {
@@ -349,6 +354,15 @@ function handleAgentEnd() {
   currentStreamingElement = null;
   currentStreamingText = '';
   updateUI();
+
+  // A session file only gets written to disk once it has its first assistant reply, so a
+  // freshly created session is invisible to /api/sessions until now - refresh the sidebar so
+  // it shows up without waiting for the next reconnect. Only do this once, the turn that first
+  // makes it appear: loadSessions() rebuilds the whole list (including the live-session dot's
+  // DOM node, restarting its CSS animation), so reloading on every turn made it flicker.
+  if (mirrorActiveSessionFile && !isSessionListed(mirrorActiveSessionFile)) {
+    sidebar.loadSessions().then(updateMirrorLiveIndicator);
+  }
 
   // Notify via tab title if unfocused
   if (!hasFocus) {
@@ -1141,6 +1155,12 @@ sidebarOverlay.addEventListener('click', () => {
 
 const newSessionBtn = document.getElementById('new-session-btn');
 newSessionBtn.addEventListener('click', () => {
+  // A new session tears down and restarts the whole mirror server (session_shutdown ->
+  // session_start), which drops and re-establishes this WS connection. A second click before
+  // that cycle finishes races the restart, so block repeat clicks until we're back online.
+  if (newSessionBtn.disabled) return;
+  newSessionBtn.disabled = true;
+  wsClient.send({ type: 'new_session' });
   sessionTotalCost = 0;
   lastInputTokens = 0;
   updateCostDisplay();
@@ -1210,26 +1230,21 @@ sessionSearchInput.addEventListener('input', () => {
   sidebar.setSearchQuery(sessionSearchInput.value);
 });
 
-async function newSession() {
-  sessionTotalCost = 0;
-  lastInputTokens = 0;
-  updateCostDisplay();
-  updateTokenUsage();
-  await switchSession(null);
-  sidebar.clearActive();
-  if (isMobile()) {
-    sidebarEl.classList.add('collapsed');
-    sidebarOverlay.classList.remove('visible');
-  }
-  if (!isMobile()) messageInput.focus();
-}
-
 async function handleSessionSelect(session, project) {
   sidebar.setActive(session.filePath);
   sessionTotalCost = 0;
   lastInputTokens = 0;
   updateCostDisplay();
   updateTokenUsage();
+
+  // Tell Pi to actually resume this session, unless it's already the live one - avoids an
+  // unnecessary session_shutdown -> session_start restart cycle on a no-op re-select. The
+  // resulting restart drops and re-establishes the WS connection, same as new_session, and the
+  // existing 'connected'/mirrorSync handling picks up the switch and moves the live indicator.
+  if (session.filePath !== mirrorActiveSessionFile) {
+    wsClient.send({ type: 'switch_session', sessionFile: session.filePath });
+  }
+
   await switchSession(session.filePath, session, project);
 
   // Close sidebar on mobile after selecting
@@ -1365,6 +1380,11 @@ function handleMirrorSync(data) {
 
   updateCostDisplay();
   updateTokenUsage();
+}
+
+// Whether the sidebar's already-loaded session list includes this file path
+function isSessionListed(filePath) {
+  return sidebar.projects.some(p => p.sessions.some(s => s.filePath === filePath));
 }
 
 // Mark all live sessions in the sidebar with a green dot

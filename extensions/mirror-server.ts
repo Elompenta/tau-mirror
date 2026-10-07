@@ -47,6 +47,8 @@ const AUTH_USER = TAU_SETTINGS.user;
 const AUTH_PASS = TAU_SETTINGS.pass;
 const AUTH_CONFIGURED = !!(AUTH_USER && AUTH_PASS);
 let authEnabled = AUTH_CONFIGURED && TAU_SETTINGS.authEnabled !== false;
+const NEW_SESSION_COMMAND_NAME = "tau-new-session";
+const SWITCH_SESSION_COMMAND_NAME = "tau-switch-session";
 // @ts-ignore — __dirname is provided by jiti at runtime
 const STATIC_DIR = process.env.TAU_STATIC_DIR || findPublicDir();
 
@@ -424,6 +426,21 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand(NEW_SESSION_COMMAND_NAME, {
+    description: "Internal: start a new session, triggered by the Tau web UI's new-session button",
+    handler: async (_args, ctx) => {
+      await ctx.newSession();
+    },
+  });
+
+  pi.registerCommand(SWITCH_SESSION_COMMAND_NAME, {
+    description: "Internal: resume a specific session, triggered from the Tau web UI's sidebar",
+    handler: async (args, ctx) => {
+      const sessionPath = args.trim();
+      if (sessionPath) await ctx.switchSession(sessionPath);
+    },
+  });
+
   // ═══════════════════════════════════════
   // Event forwarding — subscribe to all Pi events
   // ═══════════════════════════════════════
@@ -669,6 +686,21 @@ export default function (pi: ExtensionAPI) {
         case "abort": {
           if (ctx) ctx.abort();
           sendTo(ws, success("abort"));
+          break;
+        }
+
+        case "new_session": {
+          pi.sendUserMessage(`/${NEW_SESSION_COMMAND_NAME}`, { deliverAs: "followUp", expandPromptTemplates: true });
+          sendTo(ws, success("new_session"));
+          break;
+        }
+
+        case "switch_session": {
+          const sessionFile = typeof command.sessionFile === "string" ? command.sessionFile.trim() : "";
+          if (sessionFile) {
+            pi.sendUserMessage(`/${SWITCH_SESSION_COMMAND_NAME} ${sessionFile}`, { deliverAs: "followUp", expandPromptTemplates: true });
+          }
+          sendTo(ws, success("switch_session"));
           break;
         }
 
@@ -1424,6 +1456,9 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     let sessionName: string | null = null;
     let userMessageCount = 0;
     let lineCount = 0;
+    // Only TUI/RPC sessions emit these - a non-interactive `pi -p "..."` (pipe/print mode) run
+    // doesn't, so their presence tells apart a fresh interactive session from a real one-shot.
+    let hasInteractiveMarker = false;
 
     for await (const line of rl) {
       if (!line.trim()) continue;
@@ -1433,6 +1468,9 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
         const entry = JSON.parse(line);
         if (entry.type === "session") header = entry;
         else if (entry.type === "session_info" && entry.name) sessionName = entry.name;
+        else if (entry.type === "model_change" || entry.type === "thinking_level_change" || entry.type === "custom_message") {
+          hasInteractiveMarker = true;
+        }
         else if (entry.type === "message" && entry.message?.role === "user") {
           userMessageCount++;
           if (!firstMessage) {
@@ -1453,7 +1491,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     stream.destroy();
 
     if (!header?.id) return null;
-    if (userMessageCount <= 1 && lineCount <= 8) return null; // pipe mode
+    if (!hasInteractiveMarker && userMessageCount <= 1 && lineCount <= 8) return null; // pipe mode
 
     return {
       id: header.id,
