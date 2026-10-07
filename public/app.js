@@ -484,24 +484,32 @@ function draftStorageKey(sessionFile) {
 function saveDraft() {
   if (!currentDraftKey) return;
   const value = messageInput.value;
-  if (value) {
-    localStorage.setItem(currentDraftKey, value);
-  } else {
-    localStorage.removeItem(currentDraftKey);
+  // localStorage throws in some private modes or on a full quota; a draft is never worth a failed send.
+  try {
+    if (value) {
+      localStorage.setItem(currentDraftKey, value);
+    } else {
+      localStorage.removeItem(currentDraftKey);
+    }
+  } catch {}
+}
+
+function loadDraft(key) {
+  try {
+    return localStorage.getItem(key) || '';
+  } catch {
+    return '';
   }
 }
 
-// Only the currently writable (live) session reaches this: a historical session's textarea is
-// disabled, so it never fires 'input' and never gets a draft to restore. Once sessions can be
-// resumed from the sidebar (see the "resume a sidebar session" branch), this will start covering
-// those too, since it hooks the same switchSession() entry point.
+// Only a writable session gets drafts: a disabled textarea never fires 'input'.
 function switchDraftSession(sessionFile) {
   const newKey = draftStorageKey(sessionFile);
   if (newKey === currentDraftKey) return;
   clearTimeout(draftSaveTimer);
   saveDraft();
   currentDraftKey = newKey;
-  messageInput.value = localStorage.getItem(currentDraftKey) || '';
+  messageInput.value = loadDraft(currentDraftKey);
   messageInput.style.height = 'auto';
   messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
 }
