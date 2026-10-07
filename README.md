@@ -23,7 +23,7 @@ Tau connects to your running Pi TUI and gives you a second view in the browser. 
 
 This is the actively maintained continuation of [deflating/tau](https://github.com/deflating/tau), which its original author [deflating](https://github.com/deflating) retired in September 2026. Bug reports, feature requests and pull requests are welcome in this repository.
 
-Tau can access and control your Pi session; do not expose it to the public internet. Authentication is optional and the default bind address is `0.0.0.0` — set `TAU_HOST=127.0.0.1` or enable [authentication](#authentication) when you are on a shared network.
+Tau can access and control your Pi session; do not expose it to the public internet. By default it listens on `127.0.0.1`, so only this machine can open it. To use it from your phone or another device, see [Access from other devices](#access-from-other-devices).
 
 ## Install
 
@@ -54,7 +54,7 @@ Restart Pi afterwards. Your settings in `~/.pi/agent/settings.json` (the `tau` b
 2. Open the URL shown in the status bar (default: `http://localhost:3001`)
 3. That's it
 
-Type `/qr` in the terminal to show a QR code and scan it to access via your phone.
+Type `/qr` in the terminal to show a QR code and scan it to access via your phone; this needs [access from other devices](#access-from-other-devices) enabled.
 
 ## Features
 
@@ -118,11 +118,27 @@ Environment variables (set before starting Pi):
 | Variable          | Default     | Description                                                                  |
 |-------------------|-------------|------------------------------------------------------------------------------|
 | `TAU_MIRROR_PORT` | `3001`      | Server port                                                                  |
-| `TAU_HOST`        | `0.0.0.0`   | Bind address. Set to `127.0.0.1` to restrict to localhost only               |
+| `TAU_HOST`        | `127.0.0.1` | Bind address. Set to `0.0.0.0` to accept connections from other devices      |
 | `TAU_STATIC_DIR`  | *(bundled)* | Override static files path                                                   |
 | `TAU_DISABLED`    | `0`         | Set to `1` to disable Tau (it stays installed but won't start the server)    |
 | `TAU_USER`        | *(none)*    | HTTP Basic Auth username (both `TAU_USER` and `TAU_PASS` required to enable) |
 | `TAU_PASS`        | *(none)*    | HTTP Basic Auth password                                                     |
+
+### Access from other devices
+
+Tau listens on `127.0.0.1` by default. To reach it from your phone, tablet or another computer, bind it to all interfaces and set a login, because anyone who can reach the port can control your Pi session:
+
+```json
+{
+  "tau": {
+    "host": "0.0.0.0",
+    "user": "pi",
+    "pass": "your-password"
+  }
+}
+```
+
+Without a login, Tau warns at startup whenever it is reachable from the network.
 
 ### Allowed hosts
 

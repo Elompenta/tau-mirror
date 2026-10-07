@@ -17,7 +17,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import QRCode from "qrcode";
-import { isAllowedHost, isAllowedOrigin, isSessionFilePath } from "./security.ts";
+import { isAllowedHost, isAllowedOrigin, isLoopbackHost, isSessionFilePath } from "./security.ts";
 
 const USER_HOME = process.env.HOME || process.env.USERPROFILE || os.homedir();
 const PI_AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(USER_HOME, ".pi", "agent");
@@ -31,7 +31,7 @@ function loadTauSettings(): { port: number; host: string; autoStart: boolean; us
   } catch {}
   return {
     port: parseInt(process.env.TAU_MIRROR_PORT || settings.port || "3001"),
-    host: process.env.TAU_HOST || settings.host || "0.0.0.0",
+    host: process.env.TAU_HOST || settings.host || "127.0.0.1",
     autoStart: !(
       process.env.TAU_DISABLED === "1" || process.env.TAU_DISABLED === "true" ||
       settings.disabled === true
@@ -1822,7 +1822,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     };
 
     const onListening = (port: number) => {
-      const isLoopback = HOST === "127.0.0.1" || HOST === "::1" || HOST === "localhost";
+      const isLoopback = isLoopbackHost(HOST);
 
       let localIp = "localhost";
       let tailscaleIp = "";
@@ -1877,6 +1877,9 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
       registerInstance(port, sessionFile, ctx.cwd || process.cwd());
 
       ctx.ui.notify(`Tau mirror: ${mirrorUrl}${tailscaleUrl ? `  •  Tailscale: ${tailscaleUrl}` : ""}  •  /qr for QR code`, "info");
+      if (!isLoopback && !authEnabled) {
+        ctx.ui.notify(`Tau is reachable from the network on ${HOST} without a login - anyone on it can control this Pi session. Set tau.user and tau.pass in settings.json.`, "warning");
+      }
     };
 
     tryListen(PORT);

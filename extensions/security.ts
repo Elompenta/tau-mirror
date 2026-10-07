@@ -11,6 +11,12 @@ function hostnameOf(hostHeader: string): string | null {
   }
 }
 
+/** Whether a bind address only accepts connections from this machine. */
+export function isLoopbackHost(host: string): boolean {
+  const h = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  return h === "localhost" || h === "::1" || /^127(\.\d{1,3}){3}$/.test(h);
+}
+
 /** Whether a Host header names localhost, an IP address or one of extraHosts; any other name points to DNS rebinding. */
 export function isAllowedHost(hostHeader: string | undefined, extraHosts: string[] = []): boolean {
   if (!hostHeader) return false;

@@ -2,7 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
-import { isAllowedHost, isAllowedOrigin, isSessionFilePath } from "../extensions/security.ts";
+import { isAllowedHost, isAllowedOrigin, isLoopbackHost, isSessionFilePath } from "../extensions/security.ts";
+
+test("isLoopbackHost accepts loopback bind addresses", () => {
+  for (const host of ["127.0.0.1", "127.1.2.3", "::1", "[::1]", "localhost", " LOCALHOST "]) {
+    assert.equal(isLoopbackHost(host), true, host);
+  }
+});
+
+test("isLoopbackHost rejects addresses reachable from the network", () => {
+  for (const host of ["0.0.0.0", "::", "192.168.1.20", "100.64.0.7", "127.0.0.1.evil.com", "1270.0.0.1", ""]) {
+    assert.equal(isLoopbackHost(host), false, host);
+  }
+});
 
 const ports = [3001, 3002, 3011];
 
