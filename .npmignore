@@ -4,5 +4,4 @@
 docs
 *.html
 !public/index.html
-ROADMAP.md
 MOBILE.md
