@@ -17,14 +17,14 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import QRCode from "qrcode";
-import { isSessionFilePath } from "./security.ts";
+import { isAllowedHost, isAllowedOrigin, isSessionFilePath } from "./security.ts";
 
 const USER_HOME = process.env.HOME || process.env.USERPROFILE || os.homedir();
 const PI_AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(USER_HOME, ".pi", "agent");
 const PI_SETTINGS_FILE = path.join(PI_AGENT_DIR, "settings.json");
 
 // Load tau settings from Pi's settings.json (falls back to env vars)
-function loadTauSettings(): { port: number; host: string; autoStart: boolean; user: string; pass: string; authEnabled?: boolean; projectsDir?: string } {
+function loadTauSettings(): { port: number; host: string; autoStart: boolean; user: string; pass: string; authEnabled?: boolean; projectsDir?: string; allowedHosts: string[] } {
   let settings: any = {};
   try {
     settings = JSON.parse(fs.readFileSync(PI_SETTINGS_FILE, "utf8")).tau || {};
@@ -40,6 +40,7 @@ function loadTauSettings(): { port: number; host: string; autoStart: boolean; us
     pass: process.env.TAU_PASS || settings.pass || "",
     authEnabled: settings.authEnabled,
     projectsDir: process.env.TAU_PROJECTS_DIR || settings.projectsDir,
+    allowedHosts: Array.isArray(settings.allowedHosts) ? settings.allowedHosts.filter((h: unknown) => typeof h === "string") : [],
   };
 }
 
@@ -51,6 +52,13 @@ const AUTH_USER = TAU_SETTINGS.user;
 const AUTH_PASS = TAU_SETTINGS.pass;
 const AUTH_CONFIGURED = !!(AUTH_USER && AUTH_PASS);
 let authEnabled = AUTH_CONFIGURED && TAU_SETTINGS.authEnabled !== false;
+// tryListen falls back to up to 10 ports above PORT; a page on one instance may connect to another.
+const TAU_PORTS = Array.from({ length: 11 }, (_, i) => PORT + i);
+
+/** Whether a request comes from a Tau page or a non-browser client, not from another website. */
+function isRequestAllowed(req: http.IncomingMessage): boolean {
+  return isAllowedHost(req.headers.host, TAU_SETTINGS.allowedHosts) && isAllowedOrigin(req.headers.origin, req.headers.host, TAU_PORTS);
+}
 const NEW_SESSION_COMMAND_NAME = "tau-new-session";
 const SWITCH_SESSION_COMMAND_NAME = "tau-switch-session";
 // @ts-ignore — __dirname is provided by jiti at runtime
@@ -955,6 +963,12 @@ export default function (pi: ExtensionAPI) {
   function serveStaticFile(req: http.IncomingMessage, res: http.ServerResponse) {
     let urlPath = req.url || "/";
 
+    if (!isRequestAllowed(req)) {
+      res.writeHead(403, { "Content-Type": "text/plain" });
+      res.end("Forbidden");
+      return;
+    }
+
     // Auth gate — exempt /api/health for monitoring
     if (authEnabled && urlPath !== "/api/health" && !checkBasicAuth(req)) {
       sendAuthRequired(res);
@@ -1002,17 +1016,6 @@ export default function (pi: ExtensionAPI) {
   // API routes (sessions list, etc.)
   // ═══════════════════════════════════════
   function handleApiRoute(req: http.IncomingMessage, res: http.ServerResponse, urlPath: string) {
-    // CORS headers
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-    if (req.method === "OPTIONS") {
-      res.writeHead(200);
-      res.end();
-      return;
-    }
-
     if (urlPath === "/api/qr") {
       if (!mirrorUrl) {
         res.writeHead(503, { "Content-Type": "application/json" });
@@ -1077,7 +1080,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     }
 
     if (urlPath === "/api/instances") {
-      res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ instances: getRunningInstances() }));
       return;
     }
@@ -1705,6 +1708,12 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     wss = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (request, socket, head) => {
+      // Browsers open WebSockets to any origin, so this is the only barrier against other websites.
+      if (!isRequestAllowed(request)) {
+        socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+        socket.destroy();
+        return;
+      }
       if (authEnabled && !checkBasicAuth(request)) {
         socket.write("HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"Tau\"\r\n\r\n");
         socket.destroy();

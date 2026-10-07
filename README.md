@@ -124,6 +124,18 @@ Environment variables (set before starting Pi):
 | `TAU_USER`        | *(none)*    | HTTP Basic Auth username (both `TAU_USER` and `TAU_PASS` required to enable) |
 | `TAU_PASS`        | *(none)*    | HTTP Basic Auth password                                                     |
 
+### Allowed hosts
+
+Tau answers only requests addressed to `localhost` or an IP address, and only from its own pages; other websites cannot reach it through your browser. To open Tau under a host name, for example a Tailscale MagicDNS name, list it in `~/.pi/agent/settings.json`:
+
+```json
+{
+  "tau": {
+    "allowedHosts": ["my-pc.tailnet.ts.net"]
+  }
+}
+```
+
 ### Authentication
 
 Tau supports optional HTTP Basic Auth (browser-native login popup).
