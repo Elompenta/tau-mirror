@@ -1,0 +1,9 @@
+#!/bin/sh
+# Blocks a push when a unit test or a syntax check fails. Activate once per clone: git config core.hooksPath .githooks
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+node --test ".tests/**/*.test.mjs"
+for f in public/*.js; do node --check "$f"; done
+
+echo "pre-push: all checks passed"

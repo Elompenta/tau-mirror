@@ -27,6 +27,9 @@ jobs:
       - name: Tag matches package.json version
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
 
+      - name: Unit tests
+        run: node --test ".tests/**/*.test.mjs"
+
       - name: Syntax check
         run: for f in public/*.js; do node --check "$f"; done
 

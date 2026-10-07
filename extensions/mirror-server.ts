@@ -17,6 +17,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import QRCode from "qrcode";
+import { isSessionFilePath } from "./security.ts";
 
 const USER_HOME = process.env.HOME || process.env.USERPROFILE || os.homedir();
 const PI_AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(USER_HOME, ".pi", "agent");
@@ -112,13 +113,6 @@ function mirrorLog(...args: unknown[]) {
     const parts = args.map((a) => (a instanceof Error ? a.stack || a.message : typeof a === "string" ? a : JSON.stringify(a)));
     fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${parts.join(" ")}\n`);
   } catch {}
-}
-
-/** Whether the path is a .jsonl file inside SESSIONS_DIR, the only sessions the browser may switch to. */
-function isSessionFilePath(filePath: string): boolean {
-  if (!filePath) return false;
-  const resolved = path.resolve(filePath);
-  return resolved.startsWith(path.resolve(SESSIONS_DIR) + path.sep) && resolved.endsWith(".jsonl");
 }
 
 /** Empties the log file once it exceeds LOG_MAX_BYTES. */
@@ -717,7 +711,7 @@ export default function (pi: ExtensionAPI) {
 
         case "switch_session": {
           const sessionFile = typeof command.sessionFile === "string" ? command.sessionFile.trim() : "";
-          if (!isSessionFilePath(sessionFile)) {
+          if (!isSessionFilePath(sessionFile, SESSIONS_DIR)) {
             sendTo(ws, error("switch_session", "Not a session file"));
             break;
           }

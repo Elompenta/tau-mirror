@@ -64,6 +64,10 @@ npm install -g git+https://github.com/Elompenta/tau-mirror.git#main
 # to-be-done
 ```
 
+## Tests
+
+Unit tests live in `.tests/` (`node:test`, no dependencies) and run with `node --test ".tests/**/*.test.mjs"`; they cover the pure checks in `extensions/security.ts`. `.githooks/pre-push` runs them plus a syntax check of `public/*.js` and must be active in every clone: `git config core.hooksPath .githooks`. The publish workflow runs the same tests.
+
 ## Release
 
 Set the version with `npm version <x.y.z> --no-git-tag-version`, commit, then push a tag `v<x.y.z>` on that commit. `.github/workflows/publish.yml` publishes it to npm via Trusted Publishing; the tag must match `package.json`.
