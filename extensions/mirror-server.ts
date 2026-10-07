@@ -251,6 +251,8 @@ export default function (pi: ExtensionAPI) {
 
   // Store latest context reference for use in command handlers
   let latestCtx: ExtensionContext | null = null;
+  // Copied out of the ctx, which throws on any access once its session is replaced.
+  let hasLocalUI = false;
 
   // Pending RPC-style requests from browser (id -> resolver)
   const pendingRequests = new Map<string, (response: any) => void>();
@@ -287,7 +289,6 @@ export default function (pi: ExtensionAPI) {
    * The caller's opts.signal and opts.timeout close it on every side.
    */
   function raceDialog<T>(
-    ctx: ExtensionContext,
     method: "select" | "confirm" | "input",
     payload: Record<string, unknown>,
     opts: any,
@@ -314,7 +315,7 @@ export default function (pi: ExtensionAPI) {
       pendingRequests.set(id, (response: any) => finish(fromRemote(response)));
       broadcast({ type: "event", event: { type: "extension_ui_request", method, id, ...payload, timeout: opts?.timeout } });
 
-      if (ctx.hasUI) {
+      if (hasLocalUI) {
         // The local dialog also resolves on caller abort and timeout, which ends the race.
         runLocal({ ...opts, signal }).then(finish, () => finish(fromRemote({ cancelled: true })));
       }
@@ -326,6 +327,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   function wrapUIForRemote(ctx: ExtensionContext) {
+    hasLocalUI = ctx.hasUI;
     const ui = ctx.ui as any;
     if (!ui || ui.__tauRemoteWrapped) return;
     ui.__tauRemoteWrapped = true;
@@ -336,13 +338,13 @@ export default function (pi: ExtensionAPI) {
     const valueOrUndefined = (response: any) => (response?.cancelled || response?.value === undefined ? undefined : response.value);
 
     ui.select = (title: string, options: string[], opts?: any) =>
-      raceDialog(ctx, "select", { title, options }, opts, (o) => originalSelect(title, options, o), valueOrUndefined);
+      raceDialog("select", { title, options }, opts, (o) => originalSelect(title, options, o), valueOrUndefined);
 
     ui.confirm = (title: string, message: string, opts?: any) =>
-      raceDialog(ctx, "confirm", { title, message }, opts, (o) => originalConfirm(title, message, o), (response) => !!response?.confirmed);
+      raceDialog("confirm", { title, message }, opts, (o) => originalConfirm(title, message, o), (response) => !!response?.confirmed);
 
     ui.input = (title: string, placeholder?: string, opts?: any) =>
-      raceDialog(ctx, "input", { title, placeholder }, opts, (o) => originalInput(title, placeholder, o), valueOrUndefined);
+      raceDialog("input", { title, placeholder }, opts, (o) => originalInput(title, placeholder, o), valueOrUndefined);
   }
 
   let mirrorUrl = "";
@@ -1741,7 +1743,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
         mirrorLog("[Mirror] Browser client disconnected");
         clients.delete(ws);
         // Without a local UI, a dialog nobody can answer anymore would block forever.
-        if (clients.size === 0 && !latestCtx?.hasUI) {
+        if (clients.size === 0 && !hasLocalUI) {
           for (const resolver of [...pendingRequests.values()]) resolver({ cancelled: true });
         }
       });
