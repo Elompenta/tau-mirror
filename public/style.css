@@ -2578,14 +2578,8 @@ body.hide-thinking .thinking-block { display: none !important; }
 #dialog-container {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.15s;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  pointer-events: none;
 }
 
 @keyframes fadeIn {
@@ -2594,16 +2588,21 @@ body.hide-thinking .thinking-block { display: none !important; }
 }
 
 .dialog {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  width: 90%;
+  max-width: 420px;
+  transform: translateX(-50%);
+  pointer-events: auto;
   background: var(--bg-frosted);
   backdrop-filter: blur(var(--blur-heavy)) saturate(1.5);
   -webkit-backdrop-filter: blur(var(--blur-heavy)) saturate(1.5);
   border: 1px solid var(--border-hover);
   border-radius: var(--radius-lg);
   padding: 28px;
-  max-width: 420px;
-  width: 90%;
   box-shadow: var(--shadow-lg), var(--shadow-inset);
-  animation: sheetIn 0.3s var(--ease);
+  animation: sheetIn 0.3s var(--ease), fadeIn 0.15s;
 }
 
 .dialog-title {
