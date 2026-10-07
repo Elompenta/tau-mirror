@@ -87,6 +87,7 @@ const PI_AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(USER_HOME, ".p
 const SESSIONS_DIR = process.env.PI_CODING_AGENT_SESSION_DIR || path.join(PI_AGENT_DIR, "sessions");
 const INSTANCES_DIR = path.join(USER_HOME, ".pi", "tau-instances");
 const LOG_FILE = path.join(PI_AGENT_DIR, "tau-mirror.log");
+const LOG_MAX_BYTES = 1024 * 1024;
 
 /**
  * Writes a diagnostic line to a log file instead of the console.
@@ -96,6 +97,13 @@ function mirrorLog(...args: unknown[]) {
   try {
     const parts = args.map((a) => (a instanceof Error ? a.stack || a.message : typeof a === "string" ? a : JSON.stringify(a)));
     fs.appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${parts.join(" ")}\n`);
+  } catch {}
+}
+
+/** Empties the log file once it exceeds LOG_MAX_BYTES. */
+function truncateLogIfLarge(): void {
+  try {
+    if (fs.statSync(LOG_FILE).size > LOG_MAX_BYTES) fs.truncateSync(LOG_FILE, 0);
   } catch {}
 }
 
@@ -1553,6 +1561,8 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
   function startServer(ctx: ExtensionContext) {
     if (server) return; // Already running
 
+    truncateLogIfLarge();
+
     // Clean up zombie instances from killed tmux panes etc.
     cleanupZombieInstances();
 
@@ -1656,6 +1666,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
           tryListen(port + 1, maxAttempts);
         } else {
           mirrorLog(`[Mirror] Failed to start server:`, err.message);
+          ctx.ui.notify(`Tau mirror server failed to start: ${err.message}`, "error");
         }
       });
     };
