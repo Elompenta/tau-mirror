@@ -1704,7 +1704,10 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     // Clean up zombie instances from killed tmux panes etc.
     cleanupZombieInstances();
 
-    server = http.createServer(serveStaticFile);
+    const thisServer = http.createServer(serveStaticFile);
+    server = thisServer;
+    // stopServer() on a session replacement swaps the server and leaves ctx stale; late callbacks must then do nothing.
+    const isCurrent = () => server === thisServer;
     wss = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", (request, socket, head) => {
@@ -1785,10 +1788,11 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
     }, 20000);
 
     const tryListen = (port: number, maxAttempts = 10) => {
-      server!.listen(port, HOST, () => {
-        onListening(port);
+      thisServer.listen(port, HOST, () => {
+        if (isCurrent()) onListening(port);
       });
-      server!.once("error", (err: any) => {
+      thisServer.once("error", (err: any) => {
+        if (!isCurrent()) return;
         if (err.code === "EADDRINUSE" && port < PORT + maxAttempts) {
           // Check if a stale Tau instance owns this port and kill it
           const instances = getRunningInstances();
@@ -1798,13 +1802,14 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
             try { process.kill(stale.pid, "SIGTERM"); } catch {}
             // Wait briefly then retry the same port
             setTimeout(() => {
-              server!.removeAllListeners("error");
+              if (!isCurrent()) return;
+              thisServer.removeAllListeners("error");
               tryListen(port, maxAttempts);
             }, 500);
             return;
           }
           mirrorLog(`[Mirror] Port ${port} in use, trying ${port + 1}...`);
-          server!.removeAllListeners("error");
+          thisServer.removeAllListeners("error");
           tryListen(port + 1, maxAttempts);
         } else {
           mirrorLog(`[Mirror] Failed to start server:`, err.message);
