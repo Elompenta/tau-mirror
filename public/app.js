@@ -73,6 +73,8 @@ const fileSidebar = document.getElementById('file-sidebar');
 const fileSidebarToggle = document.getElementById('file-sidebar-toggle');
 const fileSidebarClose = document.getElementById('file-sidebar-close');
 const fileSidebarUp = document.getElementById('file-sidebar-up');
+const fileSidebarSort = document.getElementById('file-sidebar-sort');
+const fileSidebarSearch = document.getElementById('file-sidebar-search');
 const fileList = document.getElementById('file-list');
 const fileSidebarPath = document.getElementById('file-sidebar-path');
 const fileBrowser = new FileBrowser(fileList, fileSidebarPath, messageInput, (filePath) => {
@@ -80,6 +82,50 @@ const fileBrowser = new FileBrowser(fileList, fileSidebarPath, messageInput, (fi
   const ext = name.split('.').pop()?.toLowerCase() || '';
   pendingFilePaths.push({ path: filePath, name, ext });
   renderAttachmentPreviews();
+}, fileSidebarSearch);
+
+const fileSortDropdown = document.getElementById('file-sort-dropdown');
+const fileSortMenu = document.getElementById('file-sort-menu');
+const SORT_LABELS = { name: 'Name', date: 'Date', size: 'Size' };
+
+function updateSortMenuActive() {
+  fileSortMenu.querySelectorAll('.model-dropdown-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.sort === fileBrowser.sortBy);
+  });
+}
+
+function closeSortMenu() {
+  fileSortMenu.classList.add('hidden');
+  fileSortDropdown.classList.remove('open');
+}
+
+fileSidebarSort.title = `Sort: ${SORT_LABELS[fileBrowser.sortBy]}`;
+fileSidebarSort.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = !fileSortMenu.classList.contains('hidden');
+  if (isOpen) {
+    closeSortMenu();
+  } else {
+    updateSortMenuActive();
+    fileSortMenu.classList.remove('hidden');
+    fileSortDropdown.classList.add('open');
+  }
+});
+
+fileSortMenu.querySelectorAll('.model-dropdown-item').forEach(el => {
+  el.addEventListener('click', () => {
+    fileBrowser.setSortBy(el.dataset.sort);
+    fileSidebarSort.title = `Sort: ${SORT_LABELS[el.dataset.sort]}`;
+    closeSortMenu();
+  });
+});
+
+document.addEventListener('click', (e) => {
+  if (!fileSortDropdown.contains(e.target)) closeSortMenu();
+});
+
+fileSidebarSearch.addEventListener('input', () => {
+  fileBrowser.setSearchQuery(fileSidebarSearch.value);
 });
 
 fileSidebarToggle.addEventListener('click', () => {

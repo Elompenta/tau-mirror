@@ -3017,6 +3017,21 @@ body.hide-thinking .thinking-block { display: none !important; }
   letter-spacing: 0.04em;
 }
 
+.file-sort-dropdown {
+  position: relative;
+}
+
+.file-sort-menu {
+  left: auto;
+  right: 0;
+  min-width: 110px;
+}
+
+.file-sidebar-search-row {
+  display: flex;
+  padding: 0 12px 8px;
+}
+
 .file-sidebar-path {
   padding: 6px 12px;
   font-size: 10px;
