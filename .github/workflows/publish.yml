@@ -1,0 +1,35 @@
+# Publishes the package to npm when a version tag (v1.2.3) is pushed, via npm Trusted Publishing (OIDC, no token).
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@latest
+
+      - name: Tag matches package.json version
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+
+      - name: Syntax check
+        run: for f in public/*.js; do node --check "$f"; done
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm publish

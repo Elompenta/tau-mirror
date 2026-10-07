@@ -63,3 +63,7 @@ npm install -g git+https://github.com/Elompenta/tau-mirror.git#main
 ```bash
 # to-be-done
 ```
+
+## Release
+
+Set the version with `npm version <x.y.z> --no-git-tag-version`, commit, then push a tag `v<x.y.z>` on that commit. `.github/workflows/publish.yml` publishes it to npm via Trusted Publishing; the tag must match `package.json`.
