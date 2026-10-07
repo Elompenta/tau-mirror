@@ -891,6 +891,47 @@ body {
   color: var(--text-primary);
 }
 
+/* Session title in header */
+.session-title-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.session-title-header:hover {
+  background: var(--bg-glass-hover);
+}
+
+.session-title-header.readonly {
+  cursor: default;
+}
+
+.session-title-header.readonly:hover {
+  background: none;
+}
+
+.session-title-header-input {
+  max-width: 240px;
+  padding: 3px 7px;
+  background: var(--bg-glass);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 /* Pill — unified base for header pills */
 .pill {
   font-size: 10px;
@@ -3205,6 +3246,12 @@ body.hide-thinking .thinking-block { display: none !important; }
 
   .header-right {
     gap: 6px;
+  }
+
+  .session-title-header,
+  .session-title-header-input {
+    max-width: 110px;
+    font-size: 12px;
   }
 
 

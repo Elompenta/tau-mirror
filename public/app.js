@@ -36,6 +36,8 @@ const statusIndicator = document.getElementById('status-indicator');
 const statusText = document.getElementById('status-text');
 const sidebarEl = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
+const sessionTitleHeaderEl = document.getElementById('session-title-header');
+const sessionTitleHeaderTextEl = document.getElementById('session-title-header-text');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
 
 const refreshSessionsBtn = document.getElementById('refresh-sessions-btn');
@@ -311,10 +313,11 @@ function handleRPCEvent(event) {
       messageRenderer.renderError(`Extension error: ${event.error}`);
       break;
     case 'session_name':
-      // Auto-title: update sidebar with new session name
+      // Auto-title: update sidebar and header with new session name
       if (event.name) {
         const activeItem = document.querySelector('.session-item.active .session-title');
         if (activeItem) activeItem.textContent = event.name;
+        updateHeaderSessionTitle(event.name);
       }
       break;
   }
@@ -982,10 +985,55 @@ async function fetchModelInfo() {
       currentThinkingLevel = stateData.data.thinkingLevel;
       updateThinkingBtn();
     }
+    if (stateData.success && stateData.data?.sessionName) {
+      updateHeaderSessionTitle(stateData.data.sessionName);
+    }
   } catch (e) {
     // ignore
   }
 }
+
+function updateHeaderSessionTitle(name) {
+  sessionTitleHeaderTextEl.textContent = name || 'New Session';
+}
+
+function startHeaderRename() {
+  if (isMirrorMode && !viewingActiveSession) return;
+  if (sessionTitleHeaderEl.querySelector('.session-title-header-input')) return;
+  const currentName = sessionTitleHeaderTextEl.textContent;
+
+  const input = document.createElement('input');
+  input.className = 'session-title-header-input';
+  input.value = currentName;
+  sessionTitleHeaderEl.replaceChild(input, sessionTitleHeaderTextEl);
+  input.focus();
+  input.select();
+
+  const commit = async () => {
+    const newName = input.value.trim();
+    if (newName && newName !== currentName) {
+      try {
+        await fetch('/api/rpc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'set_session_name', name: newName }),
+        });
+      } catch { /* silent */ }
+    }
+    sessionTitleHeaderTextEl.textContent = newName || currentName;
+    input.replaceWith(sessionTitleHeaderTextEl);
+    const activeItem = document.querySelector('.session-item.active .session-title');
+    if (activeItem && newName) activeItem.textContent = newName;
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (ke) => {
+    if (ke.key === 'Enter') { ke.preventDefault(); input.blur(); }
+    if (ke.key === 'Escape') { input.value = currentName; input.blur(); }
+  });
+}
+
+sessionTitleHeaderEl.addEventListener('click', startHeaderRename);
 
 function updateModelLabel() {
   const shortName = currentModelId.replace(/^claude-/, '').replace(/-\d{8}$/, '');
@@ -1165,6 +1213,7 @@ newSessionBtn.addEventListener('click', () => {
   lastInputTokens = 0;
   updateCostDisplay();
   updateTokenUsage();
+  updateHeaderSessionTitle(null);
   state.reset();
   messageRenderer.clear();
   toolCardRenderer.clear();
@@ -1236,6 +1285,7 @@ async function handleSessionSelect(session, project) {
   lastInputTokens = 0;
   updateCostDisplay();
   updateTokenUsage();
+  updateHeaderSessionTitle(session.name || session.firstMessage || 'Empty session');
 
   // Tell Pi to actually resume this session, unless it's already the live one - avoids an
   // unnecessary session_shutdown -> session_start restart cycle on a no-op re-select. The
@@ -1351,6 +1401,7 @@ function handleMirrorSync(data) {
   switchDraftSession(mirrorActiveSessionFile);
   updateMirrorInputState();
   updateMirrorLiveIndicator();
+  updateHeaderSessionTitle(data.sessionName);
 
   // Update model display
   if (data.model) {
@@ -1416,6 +1467,7 @@ pollInstances();
 
 // Enable/disable input based on whether we're viewing the live session
 function updateMirrorInputState() {
+  updateHeaderRenameAffordance();
   if (!isMirrorMode) return;
 
   const inputArea = document.querySelector('.input-area');
@@ -1428,6 +1480,16 @@ function updateMirrorInputState() {
     messageInput.placeholder = 'Viewing historical session (read-only)';
     inputArea?.classList.add('mirror-readonly');
   }
+}
+
+// Renaming only ever affects pi's currently live session, so only allow it
+// from the header while that live session is the one being viewed.
+function updateHeaderRenameAffordance() {
+  const renamable = !isMirrorMode || viewingActiveSession;
+  sessionTitleHeaderEl.classList.toggle('readonly', !renamable);
+  sessionTitleHeaderEl.title = renamable
+    ? 'Click to rename'
+    : 'Only the active session can be renamed here';
 }
 
 // ═══════════════════════════════════════
