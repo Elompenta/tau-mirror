@@ -1,6 +1,4 @@
-# Tau Roadmap (historical)
-
-Tau is retired and no longer maintained. This roadmap is preserved as a historical record; unfinished items are not planned for implementation.
+# Tau Roadmap
 
 Ideas and planned features. Nothing here is committed — just captured so it doesn't get lost.
 
@@ -57,7 +55,7 @@ Theme picker, auto-compaction toggle, thinking level, show/hide thinking blocks,
 - Already have the tau icon in multiple sizes
 
 ### npm Publishing
-- `pi install npm:tau-mirror` for frictionless install
+- `pi install npm:@elompenta/tau-mirror` for frictionless install
 - Needs npm account setup and packaging
 
 ---

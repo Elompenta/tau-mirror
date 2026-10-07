@@ -69,13 +69,13 @@ function findPublicDir(): string {
     // 2) Installed package path (for npm-installed extension execution)
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const pkgPath = require.resolve("tau-mirror/package.json");
+      const pkgPath = require.resolve("@elompenta/tau-mirror/package.json");
       addCandidate(path.join(path.dirname(pkgPath), "public"));
     } catch {}
 
     // 3) Development fallback from current working directory
     addCandidate(path.resolve(process.cwd(), "public"));
-    addCandidate(path.resolve(process.cwd(), "node_modules/tau-mirror/public"));
+    addCandidate(path.resolve(process.cwd(), "node_modules/@elompenta/tau-mirror/public"));
 
     for (const candidate of candidates) {
       if (fs.existsSync(path.join(candidate, "index.html"))) return candidate;

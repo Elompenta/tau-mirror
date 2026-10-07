@@ -1,6 +1,6 @@
 {
-  "name": "tau-mirror",
-  "version": "1.0.10",
+  "name": "@elompenta/tau-mirror",
+  "version": "1.1.0",
   "description": "Web UI that mirrors your Pi terminal session in the browser",
   "keywords": [
     "pi",
@@ -9,20 +9,30 @@
     "web-ui",
     "mirror"
   ],
-  "author": "deflating",
+  "author": "Elompenta",
+  "contributors": [
+    "deflating (original author)"
+  ],
   "license": "MIT",
+  "homepage": "https://github.com/Elompenta/tau-mirror#readme",
+  "bugs": {
+    "url": "https://github.com/Elompenta/tau-mirror/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/deflating/tau.git"
+    "url": "https://github.com/Elompenta/tau-mirror.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "pi": {
     "extensions": [
       "./extensions/mirror-server.ts"
     ],
-    "image": "https://raw.githubusercontent.com/deflating/tau/main/docs/images/dark.png"
+    "image": "https://raw.githubusercontent.com/Elompenta/tau-mirror/main/docs/images/dark.png"
   },
   "dependencies": {
-    "ws": "^8.16.0",
+    "ws": "^8.22.0",
     "qrcode": "^1.5.0"
   }
 }

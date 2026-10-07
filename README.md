@@ -19,23 +19,34 @@ Tau connects to your running Pi TUI and gives you a second view in the browser. 
 - **Session browser** — view history from any past session
 - **No extra process** — the Pi extension *is* the server
 
-## Project status: retired
+## Project status: maintained fork
 
-Tau is no longer maintained. No further features, bug fixes, or releases are planned, and new contributions will not be reviewed or merged. The code remains available under the [MIT license](LICENSE) for anyone who wants to fork it.
+This is the actively maintained continuation of [deflating/tau](https://github.com/deflating/tau), which its original author [deflating](https://github.com/deflating) retired in September 2026. Bug reports, feature requests and pull requests are welcome in this repository.
 
-The installation and usage instructions below are retained for reference. Tau can access and control your Pi session; do not expose it to the public internet. Authentication is optional and the default bind address is `0.0.0.0`. See [#65](https://github.com/deflating/tau/issues/65) for the outstanding security cleanup.
+Tau can access and control your Pi session; do not expose it to the public internet. Authentication is optional and the default bind address is `0.0.0.0` — set `TAU_HOST=127.0.0.1` or enable [authentication](#authentication) when you are on a shared network.
 
 ## Install
 
 ```bash
-pi install npm:tau-mirror
+pi install npm:@elompenta/tau-mirror
 ```
 
 Or from git:
 
 ```bash
-pi install git:github.com/deflating/tau
+pi install git:github.com/Elompenta/tau-mirror
 ```
+
+## Migrating from `tau-mirror`
+
+The original npm package `tau-mirror` receives no further updates. Replace it with this fork:
+
+```bash
+pi remove npm:tau-mirror
+pi install npm:@elompenta/tau-mirror
+```
+
+Restart Pi afterwards. Your settings in `~/.pi/agent/settings.json` (the `tau` block) carry over unchanged.
 
 ## Usage
 
@@ -61,8 +72,9 @@ Type `/qr` in the terminal to show a QR code and scan it to access via your phon
 - Full-text search across all session history with highlighted snippets
 - Sorted by last modified (most recent first)
 - Live session marked with a green dot
-- Historical sessions are read-only
-- Inline session rename
+- Click a session to resume it in Pi; the new-session button starts a fresh Pi session
+- Inline session rename, in the sidebar or via the session title in the header
+- Unsent drafts are kept per session across reloads
 - Favourite sessions, tags, and filtering
 
 ### Model & Thinking
@@ -79,7 +91,16 @@ Type `/qr` in the terminal to show a QR code and scan it to access via your phon
 ### File Browser
 - Right sidebar with lazy-loaded file tree
 - Navigate directories, open files natively
+- Sort by name, date or size; instant search within the current directory
+- Editable path field: type or paste a path (including Explorer's "Copy as path") to jump there
 - Drag files onto the input to insert their path
+
+### Extension Dialogs
+- `ctx.ui.select`/`confirm`/`input` dialogs from any Pi extension show in the terminal and in every connected browser at once
+- The first answer wins and closes the dialog everywhere else
+
+### Diagnostics
+- Mirror server diagnostics go to `~/.pi/agent/tau-mirror.log` instead of the terminal
 
 ### Compaction
 - Manual context compaction with status display
@@ -161,8 +182,8 @@ There's no separate server to run. The extension auto-loads when Pi starts and s
 Clone and point the extension at the local static files:
 
 ```bash
-git clone https://github.com/deflating/tau.git
-cd tau
+git clone https://github.com/Elompenta/tau-mirror.git
+cd tau-mirror
 TAU_STATIC_DIR=$(pwd)/public pi
 ```
 
@@ -170,4 +191,4 @@ Edit the files in `public/` — refresh the browser to see changes.
 
 ## License
 
-MIT
+MIT — originally created by [deflating](https://github.com/deflating), maintained by [Elompenta](https://github.com/Elompenta). See [LICENSE](LICENSE).

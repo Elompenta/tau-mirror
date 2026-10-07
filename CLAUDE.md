@@ -2,11 +2,11 @@
 
 ## Package identity
 
-Repo: **tau** | npm package: **tau-mirror**
+Repo: **tau-mirror** | npm package: **@elompenta/tau-mirror**
 
 Production install (OS-independent):
 ```
-npm install -g git+https://github.com/deflating/tau.git#main
+npm install -g git+https://github.com/Elompenta/tau-mirror.git#main
 ```
 
 ## How Pi loads tau
@@ -15,7 +15,7 @@ Pi loads tau from a separate npm project that **shadows the global npm install**
 
 | OS      | Path |
 |---------|------|
-| Windows | `%USERPROFILE%\.pi\agent\npm\node_modules\tau-mirror\` |
+| Windows | `%USERPROFILE%\.pi\agent\npm\node_modules\@elompenta\tau-mirror\` |
 | macOS   | _to-be-done_ |
 
 ## Local dev setup
@@ -26,7 +26,7 @@ Run automatically when asked to make or test changes locally.
 ```powershell
 # Remove Pi's shadowing copy
 cd "$env:USERPROFILE\.pi\agent\npm"
-npm uninstall tau-mirror
+npm uninstall @elompenta/tau-mirror
 
 # Link this repo to global npm
 cd "<repo root>"
@@ -56,7 +56,7 @@ Remove-Item "$env:LOCALAPPDATA\Temp\jiti" -Recurse -Force -ErrorAction SilentlyC
 
 **Windows:**
 ```powershell
-npm install -g git+https://github.com/deflating/tau.git#main
+npm install -g git+https://github.com/Elompenta/tau-mirror.git#main
 ```
 
 **macOS:**
