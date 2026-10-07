@@ -18,12 +18,15 @@ import * as path from "node:path";
 import * as os from "node:os";
 import QRCode from "qrcode";
 
-// Load tau settings from ~/.pi/agent/settings.json (falls back to env vars)
+const USER_HOME = process.env.HOME || process.env.USERPROFILE || os.homedir();
+const PI_AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(USER_HOME, ".pi", "agent");
+const PI_SETTINGS_FILE = path.join(PI_AGENT_DIR, "settings.json");
+
+// Load tau settings from Pi's settings.json (falls back to env vars)
 function loadTauSettings(): { port: number; host: string; autoStart: boolean; user: string; pass: string; authEnabled?: boolean; projectsDir?: string } {
   let settings: any = {};
   try {
-    const settingsPath = path.join(process.env.HOME || "~", ".pi/agent/settings.json");
-    settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")).tau || {};
+    settings = JSON.parse(fs.readFileSync(PI_SETTINGS_FILE, "utf8")).tau || {};
   } catch {}
   return {
     port: parseInt(process.env.TAU_MIRROR_PORT || settings.port || "3001"),
@@ -84,8 +87,6 @@ function findPublicDir(): string {
     // Keep previous fallback behavior
     return path.resolve(process.cwd(), "public");
 }
-const USER_HOME = process.env.HOME || process.env.USERPROFILE || os.homedir();
-const PI_AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(USER_HOME, ".pi", "agent");
 const SESSIONS_DIR = process.env.PI_CODING_AGENT_SESSION_DIR || path.join(PI_AGENT_DIR, "sessions");
 const INSTANCES_DIR = path.join(USER_HOME, ".pi", "tau-instances");
 const LOG_FILE = path.join(PI_AGENT_DIR, "tau-mirror.log");
@@ -216,12 +217,11 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 function saveTauSetting(key: string, value: any) {
-  const settingsPath = path.join(process.env.HOME || "~", ".pi/agent/settings.json");
   try {
-    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    const settings = JSON.parse(fs.readFileSync(PI_SETTINGS_FILE, "utf8"));
     if (!settings.tau) settings.tau = {};
     settings.tau[key] = value;
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    fs.writeFileSync(PI_SETTINGS_FILE, JSON.stringify(settings, null, 2));
   } catch {}
 }
 
