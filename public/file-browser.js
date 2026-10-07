@@ -54,6 +54,7 @@ export class FileBrowser {
       : 'name';
 
     this.setupDropTarget();
+    this.setupPathInput();
   }
 
   async load(dirPath) {
@@ -74,7 +75,7 @@ export class FileBrowser {
       }
 
       this.currentPath = data.path;
-      this.pathEl.textContent = data.path;
+      this.pathEl.value = data.path;
       this.pathEl.title = data.path;
       this.items = data.items;
       this.render(this.getVisibleItems());
@@ -200,6 +201,38 @@ export class FileBrowser {
     input.focus();
     input.dispatchEvent(new Event('input'));
     if (this.onFileInserted) this.onFileInserted(filePath);
+  }
+
+  setupPathInput() {
+    const input = this.pathEl;
+
+    // Focused: left-align and select all, so a paste replaces the whole path.
+    input.addEventListener('focus', () => {
+      input.dir = 'ltr';
+      input.select();
+    });
+
+    // Unfocused: right-align (ellipsis at the start) to show the deepest folder.
+    input.addEventListener('blur', () => {
+      input.dir = 'rtl';
+      if (this.currentPath) input.value = this.currentPath;
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        let path = input.value.trim();
+        // Strip quotes added by "Copy as path" in Windows Explorer.
+        if (path.length > 1 && ((path.startsWith('"') && path.endsWith('"')) || (path.startsWith("'") && path.endsWith("'")))) {
+          path = path.slice(1, -1).trim();
+        }
+        if (path && path !== this.currentPath) this.load(path);
+        input.blur();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        input.blur();
+      }
+    });
   }
 
   setupDropTarget() {
