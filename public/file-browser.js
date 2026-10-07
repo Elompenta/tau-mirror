@@ -70,7 +70,10 @@ export class FileBrowser {
       const data = await res.json();
 
       if (data.error) {
-        this.container.innerHTML = `<div class="file-loading">${data.error}</div>`;
+        const message = document.createElement('div');
+        message.className = 'file-loading';
+        message.textContent = data.error;
+        this.container.replaceChildren(message);
         return;
       }
 
