@@ -102,6 +102,13 @@ function mirrorLog(...args: unknown[]) {
   } catch {}
 }
 
+/** Whether the path is a .jsonl file inside SESSIONS_DIR, the only sessions the browser may switch to. */
+function isSessionFilePath(filePath: string): boolean {
+  if (!filePath) return false;
+  const resolved = path.resolve(filePath);
+  return resolved.startsWith(path.resolve(SESSIONS_DIR) + path.sep) && resolved.endsWith(".jsonl");
+}
+
 /** Empties the log file once it exceeds LOG_MAX_BYTES. */
 function truncateLogIfLarge(): void {
   try {
@@ -697,9 +704,11 @@ export default function (pi: ExtensionAPI) {
 
         case "switch_session": {
           const sessionFile = typeof command.sessionFile === "string" ? command.sessionFile.trim() : "";
-          if (sessionFile) {
-            pi.sendUserMessage(`/${SWITCH_SESSION_COMMAND_NAME} ${sessionFile}`, { deliverAs: "followUp", expandPromptTemplates: true });
+          if (!isSessionFilePath(sessionFile)) {
+            sendTo(ws, error("switch_session", "Not a session file"));
+            break;
           }
+          pi.sendUserMessage(`/${SWITCH_SESSION_COMMAND_NAME} ${sessionFile}`, { deliverAs: "followUp", expandPromptTemplates: true });
           sendTo(ws, success("switch_session"));
           break;
         }
