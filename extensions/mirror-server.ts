@@ -123,6 +123,18 @@ function mirrorLog(...args: unknown[]) {
   } catch {}
 }
 
+/**
+ * Exports a session file to HTML with `pi --export` and returns the written path.
+ * Runs Pi's own CLI script (process.argv[1]) through node, so no shell parses the paths; the pi.cmd shim on Windows would need one.
+ */
+function exportSessionHtml(sessionFile: string, outputPath?: string): string {
+  const { execFileSync } = require("node:child_process");
+  const args = [process.argv[1], "--export", sessionFile, ...(outputPath ? [outputPath] : [])];
+  const output: string = execFileSync(process.execPath, args, { cwd: process.cwd(), timeout: 30000, encoding: "utf-8" });
+  const written = output.trim().split("\n").pop()?.replace(/^Exported to:\s*/, "");
+  return path.resolve(written || `pi-session-${path.basename(sessionFile, ".jsonl")}.html`);
+}
+
 /** Empties the log file once it exceeds LOG_MAX_BYTES. */
 function truncateLogIfLarge(): void {
   try {
@@ -904,14 +916,7 @@ export default function (pi: ExtensionAPI) {
           try {
             const sessionFile = ctx.sessionManager.getSessionFile();
             if (!sessionFile) throw new Error("No session file to export");
-            const { execSync } = require("node:child_process");
-            const args = command.outputPath
-              ? `"${sessionFile}" "${command.outputPath}"`
-              : `"${sessionFile}"`;
-            const output = execSync(`pi --export ${args}`, { cwd: process.cwd(), timeout: 30000, encoding: "utf-8" });
-            // pi prints the output path
-            const result = output.trim().split("\n").pop() || sessionFile.replace(".jsonl", ".html");
-            sendTo(ws, success("export_html", { path: result }));
+            sendTo(ws, success("export_html", { path: exportSessionHtml(sessionFile) }));
           } catch (e: any) {
             sendTo(ws, error("export_html", e.message));
           }
