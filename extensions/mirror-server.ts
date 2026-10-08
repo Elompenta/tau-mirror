@@ -135,6 +135,19 @@ function exportSessionHtml(sessionFile: string, outputPath?: string): string {
   return path.resolve(written || `pi-session-${path.basename(sessionFile, ".jsonl")}.html`);
 }
 
+/** Opens a file or URL with the platform's default app, without a shell. */
+function openWithDefaultApp(target: string): void {
+  const { execFile } = require("node:child_process");
+  if (process.platform === "win32") {
+    // explorer.exe exits with 1 even on success, so its error callback is not a failure signal.
+    execFile("explorer.exe", [target], () => {});
+  } else {
+    execFile(process.platform === "darwin" ? "open" : "xdg-open", [target], (err: Error | null) => {
+      if (err) mirrorLog("[Mirror] open failed:", err.message);
+    });
+  }
+}
+
 /** Empties the log file once it exceeds LOG_MAX_BYTES. */
 function truncateLogIfLarge(): void {
   try {
@@ -439,8 +452,7 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify("Mirror server not running yet", "warning");
         return;
       }
-      const { exec } = require("node:child_process");
-      exec(`open "${mirrorUrl}"`);
+      openWithDefaultApp(mirrorUrl);
       ctx.ui.notify(`Opened ${mirrorUrl}`, "info");
     },
   });
@@ -454,9 +466,7 @@ export default function (pi: ExtensionAPI) {
       }
       const qrPageUrl = `${mirrorUrl}/api/qr`;
       ctx.ui.notify(`Tau: ${mirrorUrl}  •  QR: ${qrPageUrl}`, "info");
-      // Open in default browser
-      const { exec } = require("node:child_process");
-      exec(`open "${qrPageUrl}"`);
+      openWithDefaultApp(qrPageUrl);
     },
   });
 
@@ -1175,19 +1185,7 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
             res.end(JSON.stringify({ error: "filePath required" }));
             return;
           }
-          const { execFile } = await import("node:child_process");
-          if (process.platform === "win32") {
-            // explorer.exe exits with 1 even on success, so its error callback is not a failure signal.
-            execFile("explorer.exe", [path.resolve(fp)], () => {});
-          } else if (process.platform === "darwin") {
-            execFile("open", [fp], (err) => {
-              if (err) mirrorLog("[Mirror] open failed:", err.message);
-            });
-          } else {
-            execFile("xdg-open", [fp], (err) => {
-              if (err) mirrorLog("[Mirror] open failed:", err.message);
-            });
-          }
+          openWithDefaultApp(path.resolve(fp));
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ ok: true }));
         } catch (err: any) {
