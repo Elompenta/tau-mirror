@@ -70,4 +70,6 @@ Unit tests live in `.tests/` (`node:test`, no dependencies) and run with `node -
 
 ## Release
 
+Push and tag only after the maintainer has tested the local state and approved it; until then commits stay local.
+
 Set the version with `npm version <x.y.z> --no-git-tag-version`, commit, then push a tag `v<x.y.z>` on that commit. `.github/workflows/publish.yml` publishes it to npm via Trusted Publishing; the tag must match `package.json`.
