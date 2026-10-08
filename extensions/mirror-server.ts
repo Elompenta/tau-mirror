@@ -139,8 +139,12 @@ function exportSessionHtml(sessionFile: string, outputPath?: string): string {
 function openWithDefaultApp(target: string): void {
   const { execFile } = require("node:child_process");
   if (process.platform === "win32") {
-    // explorer.exe exits with 1 even on success, so its error callback is not a failure signal.
-    execFile("explorer.exe", [target], () => {});
+    // explorer.exe splits its argument at commas, so use Start-Process. The encoded command reaches PowerShell
+    // unparsed by any shell, and inside a single-quoted literal only a doubled quote is special.
+    const script = `Start-Process -FilePath '${target.replace(/'/g, "''")}'`;
+    execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], (err: Error | null) => {
+      if (err) mirrorLog("[Mirror] open failed:", err.message);
+    });
   } else {
     execFile(process.platform === "darwin" ? "open" : "xdg-open", [target], (err: Error | null) => {
       if (err) mirrorLog("[Mirror] open failed:", err.message);
