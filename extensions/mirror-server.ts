@@ -1196,6 +1196,29 @@ img{border-radius:12px}a{color:#b87a5c;font-size:18px;margin-top:16px}p{color:rg
       return;
     }
 
+    // Session HTML export: /api/sessions/export?file=<session .jsonl path>
+    if (urlPath.startsWith("/api/sessions/export?") && req.method === "GET") {
+      const sessionFile = new URL(urlPath, "http://localhost").searchParams.get("file") || "";
+      if (!isSessionFilePath(sessionFile, SESSIONS_DIR) || !fs.existsSync(sessionFile)) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Not a session file" }));
+        return;
+      }
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "tau-export-"));
+      try {
+        const html = fs.readFileSync(exportSessionHtml(sessionFile, path.join(tmpDir, "session.html")));
+        // The page renders session content; the sandbox gives it an opaque origin, so its scripts cannot call Tau's API.
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": "sandbox allow-scripts allow-popups" });
+        res.end(html);
+      } catch (err: any) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+      return;
+    }
+
     // Session file endpoint: /api/sessions/:dirName/:file
     const sessionMatch = urlPath.match(/^\/api\/sessions\/([^/]+)\/([^/]+)$/);
     if (sessionMatch && req.method === "GET") {

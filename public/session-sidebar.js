@@ -324,17 +324,8 @@ export class SessionSidebar {
     }
   }
 
-  async exportSession(session) {
-    try {
-      const data = await (await fetch('/api/rpc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'export_html' }),
-      })).json();
-      if (data?.success && data.data?.path) {
-        window.open(`/api/sessions/${encodeURIComponent(data.data.path)}`);
-      }
-    } catch { /* silent */ }
+  exportSession(session) {
+    window.open(`/api/sessions/export?file=${encodeURIComponent(session.filePath)}`);
   }
 
   // ═══════════════════════════════════════
