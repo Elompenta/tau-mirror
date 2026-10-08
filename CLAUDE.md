@@ -16,7 +16,7 @@ Pi loads tau from a separate npm project that **shadows the global npm install**
 | OS      | Path |
 |---------|------|
 | Windows | `%USERPROFILE%\.pi\agent\npm\node_modules\@elompenta\tau-mirror\` |
-| macOS   | _to-be-done_ |
+| macOS   | `~/.pi/agent/npm/node_modules/@elompenta/tau-mirror/` |
 
 ## Local dev setup
 
@@ -35,7 +35,13 @@ npm link
 
 **macOS:**
 ```bash
-# to-be-done
+# Remove Pi's shadowing copy
+cd ~/.pi/agent/npm
+npm uninstall @elompenta/tau-mirror
+
+# Link this repo to global npm
+cd "<repo root>"
+npm link
 ```
 
 After any change to `extensions/mirror-server.ts` — clear jiti cache, then tell the user to restart Pi:
@@ -47,7 +53,7 @@ Remove-Item "$env:LOCALAPPDATA\Temp\jiti" -Recurse -Force -ErrorAction SilentlyC
 
 **macOS:**
 ```bash
-# to-be-done
+rm -rf "$TMPDIR/jiti"
 ```
 
 `public/` changes take effect on browser reload — no Pi restart needed.
@@ -61,7 +67,7 @@ npm install -g git+https://github.com/Elompenta/tau-mirror.git#main
 
 **macOS:**
 ```bash
-# to-be-done
+npm install -g git+https://github.com/Elompenta/tau-mirror.git#main
 ```
 
 ## Tests
