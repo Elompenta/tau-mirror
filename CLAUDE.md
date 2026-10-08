@@ -13,10 +13,10 @@ npm install -g git+https://github.com/Elompenta/tau-mirror.git#main
 
 Pi loads tau from a separate npm project that **shadows the global npm install**:
 
-| OS      | Path |
-|---------|------|
+| OS      | Path                                                              |
+|---------|-------------------------------------------------------------------|
 | Windows | `%USERPROFILE%\.pi\agent\npm\node_modules\@elompenta\tau-mirror\` |
-| macOS   | `~/.pi/agent/npm/node_modules/@elompenta/tau-mirror/` |
+| macOS   | `~/.pi/agent/npm/node_modules/@elompenta/tau-mirror/`             |
 
 ## Local dev setup
 
